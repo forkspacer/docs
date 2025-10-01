@@ -11,7 +11,7 @@ The `Workspace` resource represents a Kubernetes environment that can be managed
 
 ## API Group and Version
 
-- **API Group:** `batch.environment.sh`
+- **API Group:** `batch.forkspacer.com`
 - **API Version:** `v1`
 - **Kind:** `Workspace`
 - **Short Name:** `ws`
@@ -19,7 +19,7 @@ The `Workspace` resource represents a Kubernetes environment that can be managed
 ## Example
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: dev-environment
@@ -176,7 +176,7 @@ The `status.phase` field can have the following values:
 ### Creating a Simple Workspace
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: my-workspace
@@ -187,7 +187,7 @@ spec:
 ### Creating a Workspace with Auto-Hibernation
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: cost-optimized-workspace
@@ -201,7 +201,7 @@ spec:
 ### Forking from Another Workspace
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: testing-workspace
@@ -214,7 +214,7 @@ spec:
 ### Hibernating a Workspace Manually
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: my-workspace

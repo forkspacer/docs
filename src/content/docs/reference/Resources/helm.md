@@ -369,7 +369,7 @@ spec:
 To use a Helm resource in a Module:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: my-database
@@ -387,7 +387,7 @@ spec:
 Or embed it directly:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: my-database

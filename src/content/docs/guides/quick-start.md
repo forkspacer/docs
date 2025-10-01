@@ -19,7 +19,7 @@ This guide will help you create your first workspace and deploy a module in just
 Create a file named `workspace.yaml`:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: default
@@ -60,7 +60,7 @@ default   ready   30s
 Create a Redis module. Save this as `module_helm.yaml`:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: redis

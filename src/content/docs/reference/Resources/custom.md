@@ -775,7 +775,7 @@ spec:
 2. **Create a Module** that uses your plugin:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: my-app
@@ -884,7 +884,7 @@ spec:
 To use a Custom resource in a Module:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: my-app
@@ -902,7 +902,7 @@ spec:
 Or embed it directly:
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: my-app

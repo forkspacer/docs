@@ -59,14 +59,14 @@ forkspacer-controller-manager-xxxxxxxxx-xxxxx   1/1     Running   0          30s
 Verify the CRDs are installed:
 
 ```bash
-kubectl get crds | grep batch.environment.sh
+kubectl get crds | grep batch.forkspacer.com
 ```
 
 You should see:
 
 ```
-modules.batch.environment.sh
-workspaces.batch.environment.sh
+modules.batch.forkspacer.com
+workspaces.batch.forkspacer.com
 ```
 
 ## What's Next?
@@ -102,7 +102,7 @@ kubectl logs -n forkspacer-system deployment/forkspacer-controller-manager
 Ensure all required CRDs are installed:
 
 ```bash
-kubectl get crds | grep batch.environment.sh
+kubectl get crds | grep batch.forkspacer.com
 ```
 
 ## Uninstallation

@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: Overview of Custom Resource Definitions in Environment.sh Operator
+description: Overview of Custom Resource Definitions in forkspacer.com Operator
 sidebar:
     order: 1
 ---
@@ -11,7 +11,7 @@ The forkspacer operator extends Kubernetes with two primary Custom Resource Defi
 
 ## API Group
 
-All CRDs belong to the `batch.environment.sh` API group, version `v1`.
+All CRDs belong to the `batch.forkspacer.com` API group, version `v1`.
 
 ## Core Resources
 
@@ -96,7 +96,7 @@ A `Module` represents an installable application or component that is deployed i
 
 ```yaml
 # 1. Create a development workspace
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: dev-environment
@@ -110,7 +110,7 @@ spec:
 
 ---
 # 2. Deploy an API service module
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: api-service
@@ -126,7 +126,7 @@ spec:
 
 ---
 # 3. Deploy a monitoring module
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: monitoring
@@ -165,5 +165,5 @@ Both resources use standard Kubernetes status conventions:
 ## API Reference
 
 For the complete OpenAPI schema, refer to the generated CRD YAML files:
-- `config/crd/bases/batch.environment.sh_workspaces.yaml`
-- `config/crd/bases/batch.environment.sh_modules.yaml`
+- `config/crd/bases/batch.forkspacer.com_workspaces.yaml`
+- `config/crd/bases/batch.forkspacer.com_modules.yaml`

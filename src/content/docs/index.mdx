@@ -21,7 +21,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	<Card title="Create a workspace" icon="pencil">
 		Create workspaces to connect local or remote Kubernetes clusters and install modules to them. You can hibernate workspaces to sleep or resume the modules installed in them.
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: default
@@ -40,7 +40,7 @@ spec:
 	<Card title="Install a module" icon="add-document">
 		Manage your environments via pre-defined and configurable modules.
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: redis

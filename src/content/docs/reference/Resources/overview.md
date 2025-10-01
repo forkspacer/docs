@@ -259,7 +259,7 @@ Resources are referenced in Module CRDs via the `source` field:
 ### HTTP URL Source
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: postgresql
@@ -276,7 +276,7 @@ spec:
 ### Raw Embedded Source
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: custom-app

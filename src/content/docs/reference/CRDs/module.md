@@ -11,7 +11,7 @@ The `Module` resource represents an installable component or application that ca
 
 ## API Group and Version
 
-- **API Group:** `batch.environment.sh`
+- **API Group:** `batch.forkspacer.com`
 - **API Version:** `v1`
 - **Kind:** `Module`
 - **Short Name:** `mo`
@@ -21,7 +21,7 @@ The `Module` resource represents an installable component or application that ca
 ### Helm Module Example
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: nginx-helm
@@ -50,7 +50,7 @@ status:
 ### Custom Module Example
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: custom-app
@@ -208,7 +208,7 @@ The `status.phase` field can have the following values:
 ### Installing a Helm Module from HTTP URL
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: postgresql
@@ -225,7 +225,7 @@ spec:
 ### Installing a Custom Module with Configuration
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: custom-installer
@@ -243,7 +243,7 @@ spec:
 ### Installing a Module with Raw Helm Definition
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: redis
@@ -282,7 +282,7 @@ spec:
 ### Hibernating a Module
 
 ```yaml
-apiVersion: batch.environment.sh/v1
+apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: api-service
