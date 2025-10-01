@@ -1,14 +1,15 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
+title: Welcome to Forkspacer
+description: Get started building your dev environments with Forkspacer.
 template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: Forkspacer is a Kubernetes-native tool for orchestrating and managing workspaces with modular environments and automation hooks.
   image:
-    file: ../../assets/houston.webp
+    file: ../../assets/forkspacer.png
+    
   actions:
     - text: Example Guide
-      link: /docs/guides/example/
+      link: /guides/example/
       icon: right-arrow
 ---
 
@@ -17,16 +18,137 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## Next steps
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="Create a workspace" icon="pencil">
+		Create workspaces to connect local or remote Kubernetes clusters and install modules to them. You can hibernate workspaces to sleep or resume the modules installed in them.
+```yaml
+apiVersion: batch.environment.sh/v1
+kind: Workspace
+metadata:
+  name: default
+  namespace: default
+
+spec:
+  type: kubernetes
+  connection:
+    type: in-cluster
+  autoHibernation:
+    enabled: true
+    schedule: "0 42 18 * * *"
+    wakeSchedule: "0 42 19 * * *"
+```
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Install a module" icon="add-document">
+		Manage your environments via pre-defined and configurable modules.
+```yaml
+apiVersion: batch.environment.sh/v1
+kind: Module
+metadata:
+  name: redis
+  namespace: default
+spec:
+  source:
+    httpURL: https://raw.githubusercontent.com/forkspacer/forkspacer/main/examples/redis.yaml
+  workspace:
+    name: default
+    namespace: default
+  config:
+    version: 21.2.7
+    replicaCount: 0
+```
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
+	<Card title="Module examples" icon="setting">
+	<details>
+	<summary>Helm redis example</summary>
+```yaml
+kind: Helm
+metadata:
+  name: redis
+  version: "1.0.0"
+  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+  author: "platform-team"
+  description: "Redis in-memory data store"
+  category: "database"
+
+config:
+  - type: option
+    name: "Redis Version"
+    alias: "version"
+    spec:
+      editable: true
+      required: false
+      default: "21.2.9"
+      values:
+        - "21.2.9"
+        - "21.2.7"
+        - "21.2.6"
+
+  - type: integer
+    name: "Replica Count"
+    alias: "replicaCount"
+    spec:
+      editable: true
+      required: false
+      default: 1
+      min: 0
+      max: 5
+
+spec:
+  namespace: default
+  repo: https://charts.bitnami.com/bitnami
+  chartName: redis
+  version: "{{.config.version}}"
+
+  values:
+    - raw:
+        replica:
+          replicaCount: "{{.config.replicaCount}}"
+
+  outputs:
+    - name: "Redis Password"
+      valueFrom:
+        secret:
+          name: "{{.releaseName}}"
+          key: redis-password
+          namespace: default
+    - name: "Redis Port"
+      value: 6379
+
+  cleanup:
+    removeNamespace: false
+    removePVCs: true
+```
+</details>
+
+  <details>
+	<summary>Custom module example</summary>
+ ```yaml
+ kind: Custom
+ metadata:
+   name: test
+   version: "1.0.0"
+   supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+   author: "platform-team"
+   description: "Test"
+   category: "database"
+ 
+ config:
+   - type: integer
+     name: "Disk Size"
+     alias: "diskSize"
+     spec:
+       editable: true
+       required: false
+       default: 10
+       min: 10
+       max: 50
+ 
+ spec:
+   repo:
+     file: "https://example.com/plugin.so"
+ ```
+ </details>
 	</Card>
 	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+		Learn more in [the Forkspacer Docs](/docs/guides/example/).
 	</Card>
 </CardGrid>

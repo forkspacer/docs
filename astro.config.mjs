@@ -7,7 +7,7 @@ export default defineConfig({
 	site: 'https://forkspacer.com',
 	integrations: [
 		starlight({
-			title: 'My Docs',
+			title: 'Forkspacer',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/forkspacer' }],
 			sidebar: [
 				{
