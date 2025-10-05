@@ -91,7 +91,9 @@ The `source` field specifies where the resource definition should be loaded from
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | `raw` | object | Raw resource definition embedded directly in the Module resource. | No |
+| `configMap` | object | Reference to a ConfigMap containing the resource definition. See [ConfigMapSource](#configmapsource). | No |
 | `httpURL` | string | HTTP/HTTPS URL pointing to a resource definition YAML file. | No |
+| `existingHelmRelease` | object | Reference to an existing Helm release to adopt and track. See [ExistingHelmReleaseSource](#existinghelmreleasesource). | No |
 
 **Resource Definition Types:**
 
@@ -126,6 +128,68 @@ spec:
         chartName: nginx
         version: 15.0.0
 ```
+
+**Example - ConfigMap Source:**
+
+```yaml
+spec:
+  source:
+    configMap:
+      name: redis-module-definition
+      namespace: default
+```
+
+**Example - Existing Helm Release:**
+
+```yaml
+spec:
+  source:
+    existingHelmRelease:
+      name: redis
+      namespace: default
+```
+
+#### ConfigMapSource
+
+The `configMap` source type references a Kubernetes ConfigMap that contains the resource definition.
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `name` | string | Name of the ConfigMap. | Yes |
+| `namespace` | string | Namespace of the ConfigMap. | No (defaults to Module's namespace) |
+
+The ConfigMap must contain a key named `module.yaml` with the resource definition as its value:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-module-definition
+  namespace: default
+data:
+  module.yaml: |
+    kind: Helm
+    metadata:
+      name: redis
+      version: "1.0.0"
+      supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+    spec:
+      namespace: default
+      repo: https://charts.bitnami.com/bitnami
+      chartName: redis
+      version: 21.2.9
+```
+
+#### ExistingHelmReleaseSource
+
+The `existingHelmRelease` source type allows you to adopt and track existing Helm releases without reinstalling them. This is useful when you have pre-existing Helm releases in your cluster and want to manage them through Forkspacer without disruption.
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `name` | string | Name of the existing Helm release. | Yes |
+| `namespace` | string | Namespace where the Helm release is installed. | No (defaults to `default`) |
+
+**Important:** When a Module with an adopted Helm release is deleted, the underlying Helm release is **not** uninstalled. The Module only detaches from the release, leaving it running in the cluster.
 
 ### WorkspaceReference
 
@@ -293,6 +357,65 @@ spec:
     httpURL: https://example.com/manifests/api.yaml
   hibernated: true
 ```
+
+### Installing a Module from ConfigMap
+
+```yaml
+# First, create the ConfigMap with the module definition
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-module
+  namespace: default
+data:
+  module.yaml: |
+    kind: Helm
+    metadata:
+      name: postgresql
+      version: "1.0.0"
+      supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+    spec:
+      namespace: default
+      repo: https://charts.bitnami.com/bitnami
+      chartName: postgresql
+      version: 12.0.0
+
+---
+# Then, create the Module referencing the ConfigMap
+apiVersion: batch.forkspacer.com/v1
+kind: Module
+metadata:
+  name: postgresql
+  namespace: default
+spec:
+  workspace:
+    name: dev-environment
+  source:
+    configMap:
+      name: postgresql-module
+      namespace: default
+  config:
+    storageSize: "10Gi"
+```
+
+### Adopting an Existing Helm Release
+
+```yaml
+apiVersion: batch.forkspacer.com/v1
+kind: Module
+metadata:
+  name: existing-redis
+  namespace: default
+spec:
+  workspace:
+    name: production-workspace
+  source:
+    existingHelmRelease:
+      name: redis
+      namespace: default
+```
+
+This Module will track the existing `redis` Helm release without reinstalling it. When the Module is deleted, the Helm release will remain running in the cluster.
 
 ## Module Lifecycle
 
