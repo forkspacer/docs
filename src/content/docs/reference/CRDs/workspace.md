@@ -59,20 +59,33 @@ The `.spec` field defines the desired state of the Workspace.
 
 ### FromReference
 
-The `from` field allows you to create a workspace by forking from an existing workspace.
+The `from` field allows you to create a workspace by forking from an existing workspace. Forking creates a new workspace with copies of all modules from the source workspace. Optionally, you can migrate persistent data from the source workspace to the new workspace.
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | `name` | string | Name of the source workspace to fork from. | Yes |
 | `namespace` | string | Namespace of the source workspace. | Yes (default: `default`) |
+| `migrateData` | boolean | Whether to migrate persistent data (PVCs) from source workspace modules to the new workspace. | No (default: `false`) |
 
-**Example:**
+**Note:** Data migration is not 100% guaranteed and depends on factors such as storage class compatibility, cluster connectivity, and PVC accessibility. The operator uses the `pv-migrate` tool to perform data migrations between workspaces.
+
+**Example - Simple Forking:**
 
 ```yaml
 spec:
   from:
     name: production-workspace
     namespace: prod
+```
+
+**Example - Forking with Data Migration:**
+
+```yaml
+spec:
+  from:
+    name: production-workspace
+    namespace: prod
+    migrateData: true
 ```
 
 ### Connection
@@ -200,6 +213,8 @@ spec:
 
 ### Forking from Another Workspace
 
+Create a copy of an existing workspace without data migration:
+
 ```yaml
 apiVersion: batch.forkspacer.com/v1
 kind: Workspace
@@ -210,6 +225,30 @@ spec:
     name: production-workspace
     namespace: prod
 ```
+
+### Forking with Data Migration
+
+Create a copy of an existing workspace and migrate persistent data (PVCs) from the source workspace:
+
+```yaml
+apiVersion: batch.forkspacer.com/v1
+kind: Workspace
+metadata:
+  name: testing-workspace-with-data
+spec:
+  from:
+    name: production-workspace
+    namespace: prod
+    migrateData: true
+```
+
+**⚠️ Important Considerations for Data Migration:**
+
+- **Temporary Downtime**: The migration process will temporarily hibernate both source and destination modules during data transfer to ensure data consistency
+- **Migration Requirements**: Helm modules in the source workspace must have `migration.pvc` configuration defined in their resource definitions
+- **Not 100% Guaranteed**: Migration may fail due to storage class incompatibilities, cluster connectivity issues, or PVC accessibility problems
+- **Selective Migration**: Only Helm modules with PVC migration enabled will have their data migrated
+- **Source Preservation**: The source workspace and its data remain unchanged after migration (original hibernation state is restored)
 
 ### Hibernating a Workspace Manually
 
