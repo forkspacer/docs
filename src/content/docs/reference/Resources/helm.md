@@ -70,6 +70,7 @@ The `config` array defines user-configurable parameters. See [Configuration Sche
 | `values` | array | Array of value sources (raw, file, configMap) | No |
 | `outputs` | array | Output values to expose after installation | No |
 | `cleanup` | object | Cleanup behavior when module is deleted | No |
+| `migration` | object | Data migration configuration for workspace forking | No |
 
 ### Values Sources
 
@@ -158,6 +159,106 @@ Configure cleanup behavior when the module is deleted:
 cleanup:
   removeNamespace: false  # Whether to remove the namespace
   removePVCs: true        # Whether to remove PersistentVolumeClaims
+```
+
+### Migration
+
+Configure data migration behavior for workspace forking. When a workspace is forked with `migrateData: true`, the operator will migrate PersistentVolumeClaims (PVCs) from the source module to the destination module.
+
+```yaml
+migration:
+  pvc:
+    enabled: true  # Enable PVC migration for this module
+    names:         # List of PVC names to migrate (supports templating)
+      - "data-{{ .releaseName }}-0"
+      - "logs-{{ .releaseName }}-0"
+```
+
+**Fields:**
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `pvc.enabled` | boolean | Enable PVC migration for this Helm module | No (default: `false`) |
+| `pvc.names` | array of strings | List of PVC names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when enabled) |
+
+**How Migration Works:**
+
+1. When a workspace is forked with `migrateData: true`, the operator identifies all modules with migration enabled
+2. For each module, the operator:
+   - Creates a new module instance in the destination workspace
+   - Hibernates both source and destination modules
+   - Migrates the specified PVCs using the [pv-migrate](https://github.com/utkuozdemir/pv-migrate) tool
+   - Restores the source module to its original state
+   - Wakes up the both source and destination modules
+
+**⚠️ Important Notes:**
+
+- **Temporary Downtime**: Both source and destination modules are temporarily hibernated during migration to ensure data consistency
+- **Not 100% Guaranteed**: Migration depends on storage class compatibility, cluster connectivity, and PVC accessibility
+- **Template Support**: PVC names support templating to dynamically reference the release name and config values
+- **Selective Migration**: Only the specified PVCs are migrated; other data or configurations must be handled separately
+- **Source Preservation**: The source workspace and its data remain unchanged after migration
+
+**Example with Redis (Single Master):**
+
+```yaml
+spec:
+  namespace: default
+  repo: https://charts.bitnami.com/bitnami
+  chartName: redis
+  version: 21.2.9
+
+  values:
+    - raw:
+        master:
+          persistence:
+            enabled: true
+            size: 1Gi
+
+  migration:
+    pvc:
+      enabled: true
+      names:
+        - "redis-data-{{ .releaseName }}-master-0"
+```
+
+**Example with Redis (Master + Replicas):**
+
+```yaml
+spec:
+  namespace: default
+  repo: https://charts.bitnami.com/bitnami
+  chartName: redis
+  version: 21.2.9
+
+  migration:
+    pvc:
+      enabled: true
+      names:
+        - "redis-data-{{ .releaseName }}-master-0"
+        - "redis-data-{{ .releaseName }}-replicas-0"
+        - "redis-data-{{ .releaseName }}-replicas-1"
+```
+
+**Example with PostgreSQL:**
+
+```yaml
+spec:
+  namespace: default
+  repo: https://charts.bitnami.com/bitnami
+  chartName: postgresql
+  version: 14.0.0
+
+  values:
+    - raw:
+        persistence:
+          enabled: true
+
+  migration:
+    pvc:
+      enabled: true
+      names:
+        - "data-{{ .releaseName }}-postgresql-0"
 ```
 
 ## Templating
@@ -260,29 +361,41 @@ spec:
 
 ## Complete Example
 
-Here's a complete Helm resource for PostgreSQL:
+Here's a complete Helm resource for Redis with data migration support:
 
 ```yaml
 kind: Helm
 metadata:
-  name: postgresql
+  name: redis
   version: 1.0.0
   supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
   author: "Platform Team"
-  description: "PostgreSQL database with customizable configuration"
+  description: "Redis in-memory data store with persistence and migration support"
   category: "Database"
   resource_usage:
-    cpu: "500m"
-    memory: "1Gi"
+    cpu: "200m"
+    memory: "512Mi"
 
 config:
+  - type: option
+    name: redisVersion
+    alias: version
+    spec:
+      required: false
+      default: "21.2.9"
+      values:
+        - "21.2.9"
+        - "21.2.7"
+        - "21.2.6"
+      editable: true
+
   - type: integer
-    name: replicas
+    name: replicaCount
     alias: replicas
     spec:
-      required: true
-      default: 1
-      min: 1
+      required: false
+      default: 2
+      min: 0
       max: 5
       editable: true
 
@@ -299,16 +412,16 @@ config:
     alias: storageSize
     spec:
       required: false
-      default: "10Gi"
+      default: "1Gi"
       regex: "^[0-9]+(Mi|Gi|Ti)$"
       editable: true
 
   - type: boolean
-    name: enableBackups
-    alias: backups
+    name: enablePersistence
+    alias: persistence
     spec:
       required: false
-      default: false
+      default: true
       editable: true
 
   - type: string
@@ -319,49 +432,50 @@ config:
       default: "default"
       editable: true
 
-  - type: string
-    name: chartVersion
-    alias: chartVersion
-    spec:
-      required: false
-      default: "14.0.0"
-      editable: true
-
 spec:
   # Templated namespace from config
   namespace: "{{ .config.namespace }}"
 
   repo: https://charts.bitnami.com/bitnami
-  chartName: postgresql
+  chartName: redis
 
   # Templated chart version from config
-  version: "{{ .config.chartVersion }}"
+  version: "{{ .config.version }}"
 
   values:
     - raw:
         architecture: replication
-        replicaCount: "{{ .config.replicas }}"
-        persistence:
-          enabled: true
-          storageClass: "{{ .config.storageClass }}"
-          size: "{{ .config.storageSize }}"
-        backup:
-          enabled: "{{ .config.backups }}"
+        replica:
+          replicaCount: "{{ .config.replicas }}"
+        master:
+          persistence:
+            enabled: "{{ .config.persistence }}"
+            storageClass: "{{ .config.storageClass }}"
+            size: "{{ .config.storageSize }}"
 
   outputs:
-    - name: password
+    - name: redisHost
+      value: "{{ .releaseName }}-master.{{ .config.namespace }}.svc.cluster.local"
+
+    - name: redisPassword
       valueFrom:
         secret:
-          name: "{{ .releaseName }}-postgresql"
-          key: postgres-password
-          namespace: default
+          name: "{{ .releaseName }}"
+          key: redis-password
+          namespace: "{{ .config.namespace }}"
 
-    - name: connectionString
-      value: "postgresql://postgres@{{ .releaseName }}-postgresql:5432/postgres"
+    - name: redisPort
+      value: 6379
 
   cleanup:
     removeNamespace: false
     removePVCs: true
+
+  migration:
+    pvc:
+      enabled: true
+      names:
+        - "redis-data-{{ .releaseName }}-master-0"
 ```
 
 ## Usage in Modules
@@ -372,16 +486,17 @@ To use a Helm resource in a Module:
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
-  name: my-database
+  name: my-redis
 spec:
   workspace:
     name: dev-workspace
   source:
-    httpURL: https://example.com/resources/postgresql.yaml
+    httpURL: https://example.com/resources/redis.yaml
   config:
+    version: "21.2.9"
     replicas: 2
-    storageSize: "20Gi"
-    backups: true
+    storageSize: "2Gi"
+    persistence: true
 ```
 
 Or embed it directly:
@@ -390,7 +505,7 @@ Or embed it directly:
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
-  name: my-database
+  name: my-redis
 spec:
   workspace:
     name: dev-workspace
@@ -398,17 +513,29 @@ spec:
     raw:
       kind: Helm
       metadata:
-        name: postgresql
+        name: redis
         version: 1.0.0
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
       spec:
         namespace: default
         repo: https://charts.bitnami.com/bitnami
-        chartName: postgresql
-        version: 14.0.0
+        chartName: redis
+        version: 21.2.9
+
         values:
           - raw:
-              replicaCount: 2
+              replica:
+                replicaCount: 2
+              master:
+                persistence:
+                  enabled: true
+                  size: 2Gi
+
+        migration:
+          pvc:
+            enabled: true
+            names:
+              - "redis-data-{{ .releaseName }}-master-0"
 ```
 
 ## Values File Distribution
