@@ -11,6 +11,10 @@ hero:
     - text: Get Started
       link: /guides/installation/
       icon: right-arrow
+    - text: View on GitHub
+      icon: external
+      variant: minimal
+      link: https://github.com/forkspacer/forkspacer
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
@@ -125,26 +129,10 @@ spec:
  kind: Custom
  metadata:
    name: test
-   version: "1.0.0"
    supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-   author: "platform-team"
-   description: "Test"
-   category: "database"
- 
- config:
-   - type: integer
-     name: "Disk Size"
-     alias: "diskSize"
-     spec:
-       editable: true
-       required: false
-       default: 10
-       min: 10
-       max: 50
- 
+
  spec:
-   repo:
-     file: "https://example.com/plugin.so"
+   image: "my-registry/custom-module:v1.0.0"
  ```
  </details>
 	</Card>

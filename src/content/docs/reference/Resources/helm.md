@@ -612,6 +612,6 @@ kubectl create configmap production-values \
 
 ## Related Resources
 
-- [Custom Resources](./custom.md) - Custom plugin-based resources
-- [Overview](./overview.md) - Resource definitions overview
+- [Custom Resources](/reference/crds/custom/) - Custom docker-based resources
+- [Overview](/reference/crds/overview/) - Resource definitions overview
 - [Module CRD](/reference/crds/module/) - Using resources in Modules

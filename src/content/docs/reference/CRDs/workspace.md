@@ -263,5 +263,5 @@ spec:
 
 ## Related Resources
 
-- [Module](./module.md) - Modules are deployed into Workspaces
-- [Overview](./overview.md) - CRD overview and architecture
+- [Module](/reference/crds/module/) - Modules are deployed into Workspaces
+- [Overview](/reference/crds/overview/) - CRD overview and architecture

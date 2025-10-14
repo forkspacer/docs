@@ -19,35 +19,6 @@ Before you begin development, ensure you have the following tools installed:
 - **Kind** (Kubernetes in Docker) - Recommended for local development
 - **Git** - Version control
 
-## Project Structure
-
-The Forkspacer operator follows the standard Kubebuilder project layout:
-
-```
-forkspacer/
-├── api/v1/              # CRD definitions (Workspace, Module)
-├── cmd/                 # Application entrypoint
-├── config/              # Kubernetes manifests and kustomize configs
-│   ├── crd/            # Generated CRD manifests
-│   ├── manager/        # Operator deployment manifests
-│   ├── rbac/           # RBAC configurations
-│   └── webhook/        # Webhook configurations
-├── internal/
-│   ├── controller/     # Reconciliation logic for CRDs
-│   └── webhook/        # Webhook validation and defaulting
-├── pkg/                # Reusable packages
-│   ├── manager/        # Manager initialization
-│   ├── resources/      # Resource management utilities
-│   ├── services/       # Business logic services
-│   ├── types/          # Common types
-│   └── utils/          # Utility functions
-├── plugins/            # Plugin system for extensibility
-├── test/
-│   ├── e2e/           # End-to-end tests
-│   └── utils/         # Test utilities
-└── Makefile           # Development commands
-```
-
 ## Getting Started
 
 ### 1. Clone the Repository
@@ -344,5 +315,5 @@ make build VERSION=v0.2.0-dev
 
 ## Next Steps
 
-- [Plugin Development](/development/plugin-development/) - Learn how to create custom plugins
+- [Custom Module Development](/development/custom-module/) - Learn how to create custom modules
 - [API Reference](/reference/crds/overview/) - Understand the CRD specifications

@@ -159,8 +159,8 @@ Both resources use standard Kubernetes status conventions:
 
 ## Further Reading
 
-- [Workspace Reference](./workspace.md) - Complete Workspace CRD specification
-- [Module Reference](./module.md) - Complete Module CRD specification
+- [Workspace Reference](/reference/crds/workspace/) - Complete Workspace CRD specification
+- [Module Reference](/reference/crds/module/) - Complete Module CRD specification
 
 ## API Reference
 

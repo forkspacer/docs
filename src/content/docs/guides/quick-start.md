@@ -28,8 +28,6 @@ spec:
   type: kubernetes
   connection:
     type: in-cluster
-    secretReference:
-      name: in-cluster
   autoHibernation:
     enabled: false
     schedule: "0 42 18 * * *"       # 6-field cron with seconds
@@ -71,14 +69,7 @@ spec:
       kind: Helm
       metadata:
         name: redis
-        version: "1.0.0"
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-        author: "platform-team"
-        description: "Redis in-memory data store"
-        category: "database"
-        resource_usage:
-          cpu: "200m"
-          memory: "256Mi"
 
       config:
         - type: option
@@ -113,16 +104,6 @@ spec:
           - raw:
               replica:
                 replicaCount: "{{.config.replicaCount}}"
-
-        outputs:
-          - name: "Redis Hostname"
-            value: "redis-master.default"
-          - name: "Redis Password"
-            valueFrom:
-              secret:
-                name: "{{.releaseName}}"
-                key: redis-password
-                namespace: default
 
         cleanup:
           removeNamespace: false

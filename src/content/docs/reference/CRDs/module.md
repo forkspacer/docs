@@ -7,7 +7,7 @@ sidebar:
 
 # Module
 
-The `Module` resource represents an installable component or application that can be deployed into a `Workspace`. Modules reference resource definitions (Helm charts or custom plugins) and support hibernation to reduce resource consumption.
+The `Module` resource represents an installable component or application that can be deployed into a `Workspace`. Modules reference resource definitions (Helm charts or custom modules) and support hibernation to reduce resource consumption.
 
 ## API Group and Version
 
@@ -67,8 +67,7 @@ spec:
         version: 1.0.0
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
       spec:
-        repo:
-          file: /path/to/plugin.sh
+        image: my-registry/custom-app:v1.0.0
 status:
   phase: ready
 ```
@@ -86,7 +85,7 @@ The `.spec` field defines the desired state of the Module.
 
 ### Source
 
-The `source` field specifies where the resource definition should be loaded from. Resource definitions describe either Helm charts or custom plugins with their configuration schemas. Only one source type should be specified.
+The `source` field specifies where the resource definition should be loaded from. Resource definitions describe either Helm charts or custom modules with their configuration schemas. Only one source type should be specified.
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
@@ -99,7 +98,7 @@ The `source` field specifies where the resource definition should be loaded from
 
 The source must point to or contain a resource definition with one of these kinds:
 - **`Helm`**: Deploys a Helm chart - [Learn more →](/reference/resources/helm/)
-- **`Custom`**: Runs a custom plugin script - [Learn more →](/reference/resources/custom/)
+- **`Custom`**: Runs a custom containerized module - [Learn more →](/reference/resources/custom/)
 
 For complete details on resource definition structure and configuration, see the [Resources documentation](/reference/resources/overview/).
 
@@ -213,7 +212,7 @@ spec:
 
 The `config` field accepts key-value pairs for module-specific configuration. The available configuration options and their validation rules are defined in the resource definition's `config` array.
 
-Configuration values are validated against the resource definition schema and passed to the underlying Helm chart or custom plugin. See the [Configuration Schema documentation](/reference/resources/overview/#configuration-schema) for details on supported configuration types and validation.
+Configuration values are validated against the resource definition schema and passed to the underlying Helm chart or custom module. See the [Configuration Schema documentation](/reference/resources/overview/#configuration-schema) for details on supported configuration types and validation.
 
 **Example:**
 
@@ -434,13 +433,13 @@ This Module will track the existing `redis` Helm release without reinstalling it
 Modules reference **resource definitions** that describe how applications should be installed. Resource definitions can be either:
 
 - **Helm Resources**: Deploy Helm charts with customizable values
-- **Custom Resources**: Execute custom plugin scripts for installation
+- **Custom Resources**: Run containerized custom modules for installation
 
 For complete documentation on creating and using resource definitions, see:
 
 - [Resources Overview](/reference/resources/overview/) - Introduction to resource definitions
 - [Helm Resources](/reference/resources/helm/) - Helm chart deployments
-- [Custom Resources](/reference/resources/custom/) - Plugin-based installations
+- [Custom Resources](/reference/resources/custom/) - Container-based custom modules
 
 ## Relationship with Workspace
 
@@ -451,8 +450,6 @@ For complete documentation on creating and using resource definitions, see:
 
 ## Related Resources
 
-- [Workspace](./workspace.md) - Modules are deployed into Workspaces
-- [Overview](./overview.md) - CRD overview and architecture
 - [Resources Overview](/reference/resources/overview/) - Resource definition documentation
 - [Helm Resources](/reference/resources/helm/) - Helm resource reference
 - [Custom Resources](/reference/resources/custom/) - Custom resource reference

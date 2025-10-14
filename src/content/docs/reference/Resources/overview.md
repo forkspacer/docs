@@ -7,7 +7,7 @@ sidebar:
 
 # Resources Overview
 
-Resources are YAML definition files that describe how modules should be installed and configured within a workspace. They provide a declarative way to define Helm charts or custom plugins with user-configurable parameters.
+Resources are YAML definition files that describe how modules should be installed and configured within a workspace. They provide a declarative way to define Helm charts or custom modules with user-configurable parameters.
 
 ## Resource Types
 
@@ -33,11 +33,11 @@ The forkspacer operator supports two types of resources:
 
 ### Custom Resources
 
-[Custom resources](/reference/resources/custom/) execute compiled Go plugins for installation and management. They provide:
+[Custom resources](/reference/resources/custom/) run containerized HTTP services for installation and management. They provide:
 
-- Native Go integration with the operator
-- Direct Kubernetes API access
-- Type-safe configuration handling
+- Language-agnostic implementation (any language with HTTP server support)
+- Isolated execution environment via containers
+- Standard REST API for lifecycle operations
 - Full control over installation logic
 - Support for hibernation and resume operations
 
@@ -376,12 +376,11 @@ config:
     spec:
       default: "default"
 spec:
-  repo:
-    file: https://example.com/plugins/custom-app/plugin.so
+  image: my-registry/app-setup:v1.0.0
 ```
 
 ## Related Resources
 
-- [Helm Resources](./helm.md) - Detailed Helm resource documentation
-- [Custom Resources](./custom.md) - Detailed Custom resource documentation
+- [Helm Resources](/reference/resources/helm/) - Detailed Helm resource documentation
+- [Custom Resources](/reference/resources/custom/) - Detailed Custom resource documentation
 - [Module CRD](/reference/crds/module/) - Using resources in Modules

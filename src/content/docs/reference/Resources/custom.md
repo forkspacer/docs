@@ -1,13 +1,13 @@
 ---
 title: Custom
-description: Custom resource definition reference for plugin-based installations
+description: Custom resource definition reference for container-based modules
 sidebar:
     order: 3
 ---
 
 # Custom Resources
 
-Custom resources define Go plugin-based installations that can be executed within a Module. They provide a flexible way to run custom installation, configuration, and management logic using compiled Go plugins that integrate directly with the operator.
+Custom resources define Docker container-based modules that can be executed within a Module. They provide a flexible way to run custom installation, configuration, and management logic using containerized HTTP services that integrate with the operator.
 
 ## Structure
 
@@ -32,12 +32,11 @@ config:
     alias: <config-alias>
     spec: <type-specific-spec>
 spec:
-  repo:
-    file: <http-url-to-plugin.so>
-    # OR
-    configMap:
-      name: <configmap-name>
-      namespace: <configmap-namespace>
+  image: <docker-image-reference>
+  imagePullSecrets: # Optional
+    - <secret-name>
+  permissions: # Optional
+    - workspace|controller
 ```
 
 ## Metadata Fields
@@ -60,138 +59,159 @@ The `config` array defines user-configurable parameters. See [Configuration Sche
 
 ## Spec Fields
 
-### Repo
-
-The `repo` field specifies where the compiled Go plugin (`.so` file) is located. **Only one of `file` or `configMap` should be specified.**
+The `spec` section defines how the custom module container should be deployed and what permissions it has.
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
-| `repo.file` | string | HTTP/HTTPS URL to the compiled plugin `.so` file | One of file or configMap |
-| `repo.configMap` | object | Reference to a ConfigMap containing the plugin binary | One of file or configMap |
-| `repo.configMap.name` | string | Name of the ConfigMap | Yes (if using configMap) |
-| `repo.configMap.namespace` | string | Namespace of the ConfigMap | No (defaults to module namespace) |
+| `spec.image` | string | Docker image reference (e.g., `my-registry/my-module:v1.0.0`) | Yes |
+| `spec.imagePullSecrets` | array of strings | List of Kubernetes secret names for pulling private images | No |
+| `spec.permissions` | array of strings | Cluster access permissions. `workspace` = workspace kubeconfig, `controller` = operator service account | No |
 
-**Note**: When using `file`, the URL must point to a downloadable `.so` binary file. When using `configMap`, the plugin binary must be stored under the key `plugin` in the ConfigMap's data.
+### Image
 
-## Go Plugin Interface
+The `image` field specifies the Docker container image that contains your custom module implementation.
 
-Custom plugins are compiled Go plugins (`.so` files) that implement the `IManager` interface. The operator loads these plugins dynamically at runtime.
+**Example:**
+```yaml
+spec:
+  image: my-registry/my-module:v1.0.0
+```
 
-### Required Interface
+**Note**: The image must be accessible from your Kubernetes cluster. You can use:
+- Public registries (Docker Hub, GHCR, etc.)
+- Private registries (requires image pull secrets)
+- Internal registries within your cluster
 
-All custom plugins must implement the `IManager` interface from `github.com/forkspacer/forkspacer/pkg/manager/base`:
+### Image Pull Secrets
 
-```go
-type IManager interface {
-    Install(ctx context.Context, metaData MetaData) error
-    Uninstall(ctx context.Context, metaData MetaData) error
-    Sleep(ctx context.Context, metaData MetaData) error
-    Resume(ctx context.Context, metaData MetaData) error
+The `imagePullSecrets` field specifies Kubernetes secrets containing credentials for pulling images from private registries.
+
+**Example:**
+```yaml
+spec:
+  image: my-private-registry.com/my-module:v1.0.0
+  imagePullSecrets:
+    - my-registry-secret
+    - another-registry-secret
+```
+
+**Creating an image pull secret:**
+```bash
+kubectl create secret docker-registry my-registry-secret \
+  --docker-server=my-private-registry.com \
+  --docker-username=myusername \
+  --docker-password=mypassword \
+  --docker-email=myemail@example.com \
+  -n forkspacer-system
+```
+
+**Note:** The secret must be created in the `forkspacer-system` namespace where custom module pods run.
+
+### Permissions
+
+The `permissions` field specifies what level of cluster access the custom module container receives. This determines which kubeconfig or service account credentials are provided to the module.
+
+**Available Permissions:**
+
+- **`workspace`**: Provides the module with the kubeconfig file of the target workspace. The module can access and manage resources in the workspace's cluster (which may be a remote cluster or in-cluster). This is the recommended permission for most custom modules that only need to manage resources within their assigned workspace.
+
+- **`controller`**: Provides the module with access to the main cluster (where the Forkspacer operator is installed) via a service account. The module runs with elevated permissions similar to the operator itself. Use this only for modules that need to manage operator-level resources or interact with multiple workspaces.
+
+**Example with workspace permissions:**
+```yaml
+spec:
+  image: my-registry/my-module:v1.0.0
+  permissions:
+    - workspace
+```
+
+The module will receive the workspace's kubeconfig and can manage resources in that workspace's cluster.
+
+**Example with controller permissions:**
+```yaml
+spec:
+  image: my-registry/admin-module:v1.0.0
+  permissions:
+    - controller
+```
+
+The module will receive a service account with access to the main cluster where the operator runs.
+
+**Security Note**: Only grant `controller` permissions when your module needs to interact with the operator's cluster or manage multiple workspaces. Most custom modules should use `workspace` permissions for better security isolation.
+
+## HTTP API Interface
+
+Custom modules are containerized HTTP services that implement a REST API for lifecycle management. The operator communicates with these services via HTTP endpoints.
+
+### Required Endpoints
+
+All custom modules must implement the following HTTP endpoints:
+
+#### Health Check
+```
+GET /health
+Response: 200 OK
+{
+  "timestamp": "2025-10-14T10:30:00Z",
+  "uptime": 123.45,
+  "message": "Service is running",
+  "healthy": true
 }
 ```
-
-### Plugin Constructor
-
-Plugins must export a constructor function named `NewManager` with this signature:
-
-```go
-func NewManager(
-    ctx context.Context,
-    logger logr.Logger,
-    kubernetesConfig *rest.Config,
-    config map[string]any,
-) (base.IManager, error)
-```
-
-**Parameters:**
-- `ctx`: Context for the plugin lifecycle
-- `logger`: Structured logger for plugin output
-- `kubernetesConfig`: Kubernetes REST config for cluster access
-- `config`: User-provided configuration values from the Module CRD
-
-### Lifecycle Methods
 
 #### Install
-
-Called when a Module is created or needs to be installed:
-
-```go
-func (plugin MyPlugin) Install(ctx context.Context, metaData base.MetaData) error {
-    plugin.logger.Info("Installing module")
-    // Installation logic here
-    return nil
-}
 ```
+POST /install
+Content-Type: application/json
+Request Body: {"key": "value", ...}  // Module configuration
+Response: 201 Created (on success) or 400 Bad Request (on failure)
+```
+
+Called when a Module is created or needs to be installed. This endpoint should deploy and configure all required resources.
 
 #### Uninstall
-
-Called when a Module is deleted:
-
-```go
-func (plugin MyPlugin) Uninstall(ctx context.Context, metaData base.MetaData) error {
-    plugin.logger.Info("Uninstalling module")
-    // Cleanup logic here
-    return nil
-}
 ```
+POST /uninstall
+Content-Type: application/json
+Request Body: {"key": "value", ...}  // Module configuration
+Response: 204 No Content (on success) or 400 Bad Request (on failure)
+```
+
+Called when a Module is deleted. This endpoint should remove all resources and clean up.
 
 #### Sleep
-
-Called when a Module is hibernated:
-
-```go
-func (plugin MyPlugin) Sleep(ctx context.Context, metaData base.MetaData) error {
-    plugin.logger.Info("Hibernating module")
-    // Scale down resources
-    return nil
-}
 ```
+POST /sleep
+Content-Type: application/json
+Request Body: {"key": "value", ...}  // Module configuration
+Response: 200 OK (on success) or 400 Bad Request (on failure)
+```
+
+Called when a Module is hibernated. This endpoint should scale down or pause resources to save costs.
 
 #### Resume
-
-Called when a Module is resumed from hibernation:
-
-```go
-func (plugin MyPlugin) Resume(ctx context.Context, metaData base.MetaData) error {
-    plugin.logger.Info("Resuming module")
-    // Scale up resources
-    return nil
-}
 ```
+POST /resume
+Content-Type: application/json
+Request Body: {"key": "value", ...}  // Module configuration
+Response: 200 OK (on success) or 400 Bad Request (on failure)
+```
+
+Called when a Module is resumed from hibernation. This endpoint should scale up or restore resources.
 
 ### Configuration Access
 
-Configuration values are passed to the `NewManager` constructor as a `map[string]any`:
-
-```go
-func NewManager(
-    ctx context.Context,
-    logger logr.Logger,
-    kubernetesConfig *rest.Config,
-    config map[string]any,
-) (base.IManager, error) {
-    // Access configuration values
-    replicas := config["replicas"].(int)
-    environment := config["env"].(string)
-
-    logger.Info("Configuration", "replicas", replicas, "environment", environment)
-
-    return &MyPlugin{
-        logger: logger,
-        config: config,
-    }, nil
-}
-```
+Configuration values are passed to each endpoint as JSON in the request body. The metadata parameter persists across lifecycle operations and can be used to store state information.
 
 ### Error Handling
 
-- Return `nil` for successful operations
-- Return an `error` for failures (module will be marked as failed)
-- Use the provided logger for debugging and status messages
+- Return appropriate HTTP status codes (200, 201, 204 for success; 400, 500 for errors)
+- Include descriptive error messages in the response body
+- Use structured logging for debugging and status messages
 
 ## Examples
 
-### Complete Plugin Example
+### Complete Custom Module Example
 
 **Resource Definition:**
 
@@ -235,239 +255,335 @@ config:
       editable: true
 
 spec:
-  repo:
-    file: https://example.com/plugins/custom-app/plugin.so
+  image: my-registry/custom-app-installer:v1.0.0
+  permissions:
+    - workspace
 ```
 
-**Plugin Implementation** (`plugins/custom-app/main.go`):
+**HTTP Server Implementation (Go example):**
 
 ```go
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"time"
 
-	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
-	"github.com/forkspacer/forkspacer/pkg/manager/base"
+	"go.uber.org/zap"
 )
 
-// Ensure the plugin implements the interface
-var _ base.NewCustomManagerT = NewManager
+var startTime = time.Now()
 
-// NewManager is the required constructor function
-func NewManager(
-	ctx context.Context,
-	logger logr.Logger,
-	kubernetesConfig *rest.Config,
-	config map[string]any,
-) (base.IManager, error) {
-	kubernetesClient, err := kubernetes.NewForConfig(kubernetesConfig)
+type Handler struct {
+	logger  *zap.Logger
+	manager *Manager
+}
+
+func (h *Handler) Install(w http.ResponseWriter, r *http.Request) {
+	metaData, err := h.parseMetaData(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+		http.Error(w, err.Error(), 400)
+		return
 	}
 
-	// Extract configuration values
-	environment := config["env"].(string)
-	debug := config["debug"].(bool)
-	namespace := config["namespace"].(string)
+	if err = h.manager.Install(r.Context(), metaData); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 
-	logger.Info("Initializing plugin",
-		"environment", environment,
-		"debug", debug,
-		"namespace", namespace,
-	)
-
-	return &CustomAppPlugin{
-		logger:    logger,
-		k8sClient: kubernetesClient,
-		env:       environment,
-		debug:     debug,
-		namespace: namespace,
-	}, nil
+	w.WriteHeader(201)
+	json.NewEncoder(w).Encode(metaData)
 }
 
-type CustomAppPlugin struct {
-	logger    logr.Logger
-	k8sClient *kubernetes.Clientset
-	env       string
-	debug     bool
-	namespace string
+func (h *Handler) Uninstall(w http.ResponseWriter, r *http.Request) {
+	metaData, err := h.parseMetaData(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if err = h.manager.Uninstall(r.Context(), metaData); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	w.WriteHeader(204)
 }
 
-func (plugin *CustomAppPlugin) Install(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Installing custom application",
-		"environment", plugin.env,
-		"namespace", plugin.namespace,
+func (h *Handler) Sleep(w http.ResponseWriter, r *http.Request) {
+	metaData, err := h.parseMetaData(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if err = h.manager.Sleep(r.Context(), metaData); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(metaData)
+}
+
+func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
+	metaData, err := h.parseMetaData(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if err = h.manager.Resume(r.Context(), metaData); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(metaData)
+}
+
+func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	response := map[string]any{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"uptime":    time.Since(startTime).Seconds(),
+		"message":   "Service is running",
+		"healthy":   true,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(response)
+}
+
+type Manager struct {
+	logger *zap.Logger
+}
+
+func (m *Manager) Install(ctx context.Context, metaData map[string]any) error {
+	env := metaData["env"].(string)
+	debug := metaData["debug"].(bool)
+	namespace := metaData["namespace"].(string)
+
+	m.logger.Info("Installing custom application",
+		zap.String("environment", env),
+		zap.Bool("debug", debug),
+		zap.String("namespace", namespace),
 	)
 
 	// Create namespace if it doesn't exist
-	_, err := plugin.k8sClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: plugin.namespace,
-		},
-	}, metav1.CreateOptions{})
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create namespace: %w", err)
-	}
-
 	// Apply base manifests
-	plugin.logger.Info("Applying base manifests")
-	// ... deployment logic here ...
-
 	// Apply environment-specific configuration
-	plugin.logger.Info("Applying environment configuration", "env", plugin.env)
-	// ... environment-specific logic ...
+	// Store deployment info in metaData for later use
 
-	if plugin.debug {
-		plugin.logger.Info("Applying debug configuration")
-		// ... debug configuration ...
+	metaData["deploymentName"] = "my-app-deployment"
+	metaData["installedResources"] = map[string]string{
+		"deployment": "my-app-deployment",
+		"service":    "my-app-service",
 	}
 
-	plugin.logger.Info("Installation completed successfully")
+	m.logger.Info("Installation completed successfully")
 	return nil
 }
 
-func (plugin *CustomAppPlugin) Uninstall(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Uninstalling custom application", "namespace", plugin.namespace)
+func (m *Manager) Uninstall(ctx context.Context, metaData map[string]any) error {
+	m.logger.Info("Uninstalling custom application")
 
-	// Delete resources
-	// ... cleanup logic ...
+	// Retrieve resources from metadata
+	resources, ok := metaData["installedResources"].(map[string]any)
+	if ok {
+		// Delete resources in reverse order
+		m.logger.Info("Deleting resources", zap.Any("resources", resources))
+	}
 
-	plugin.logger.Info("Uninstallation completed successfully")
+	m.logger.Info("Uninstallation completed successfully")
 	return nil
 }
 
-func (plugin *CustomAppPlugin) Sleep(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Hibernating custom application")
+func (m *Manager) Sleep(ctx context.Context, metaData map[string]any) error {
+	m.logger.Info("Hibernating custom application")
 
-	// Scale down deployments
-	// ... hibernation logic ...
+	// Scale down deployments to 0
+	// Store current state in metaData
 
 	return nil
 }
 
-func (plugin *CustomAppPlugin) Resume(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Resuming custom application")
+func (m *Manager) Resume(ctx context.Context, metaData map[string]any) error {
+	m.logger.Info("Resuming custom application")
 
+	// Restore state from metaData
 	// Scale up deployments
-	// ... resume logic ...
 
 	return nil
 }
-
-// Required empty main function for Go plugins
-func main() {}
 ```
 
-### Simple Plugin Example
+### Simple Module Example
 
 **Resource Definition:**
 
 ```yaml
 kind: Custom
 metadata:
-  name: test-plugin
+  name: simple-module
   version: 1.0.0
   supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-  description: "Simple test plugin"
+  description: "Simple custom module"
 
 spec:
-  repo:
-    file: https://example.com/plugins/test/plugin.so
+  image: my-registry/simple-module:latest
+  permissions:
+    - workspace
 ```
 
-**Plugin Implementation:**
+**Minimal HTTP Server (Python example):**
 
-```go
-package main
+```python
+from flask import Flask, request, jsonify
+import time
 
-import (
-	"context"
+app = Flask(__name__)
+start_time = time.time()
 
-	"github.com/go-logr/logr"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'uptime': time.time() - start_time,
+        'message': 'Service is running',
+        'healthy': True
+    }), 200
 
-	"github.com/forkspacer/forkspacer/pkg/manager/base"
-)
+@app.route('/install', methods=['POST'])
+def install():
+    metadata = request.get_json() or {}
+    print(f"Installing with metadata: {metadata}")
+    # Add your installation logic here
+    return jsonify(metadata), 201
 
-var _ base.NewCustomManagerT = NewManager
+@app.route('/uninstall', methods=['POST'])
+def uninstall():
+    metadata = request.get_json() or {}
+    print(f"Uninstalling with metadata: {metadata}")
+    # Add your uninstallation logic here
+    return '', 204
 
-func NewManager(
-	ctx context.Context,
-	logger logr.Logger,
-	kubernetesConfig *rest.Config,
-	config map[string]any,
-) (base.IManager, error) {
-	kubernetesClient, err := kubernetes.NewForConfig(kubernetesConfig)
-	if err != nil {
-		return nil, err
-	}
+@app.route('/sleep', methods=['POST'])
+def sleep():
+    metadata = request.get_json() or {}
+    print(f"Sleeping with metadata: {metadata}")
+    # Add your sleep logic here
+    return jsonify(metadata), 200
 
-	return TestPlugin{log: logger, kubernetesClient: kubernetesClient}, nil
-}
+@app.route('/resume', methods=['POST'])
+def resume():
+    metadata = request.get_json() or {}
+    print(f"Resuming with metadata: {metadata}")
+    # Add your resume logic here
+    return jsonify(metadata), 200
 
-type TestPlugin struct {
-	log              logr.Logger
-	kubernetesClient *kubernetes.Clientset
-}
-
-func (plugin TestPlugin) Install(ctx context.Context, metaData base.MetaData) error {
-	plugin.log.Info("Install 'Test' custom plugin")
-	return nil
-}
-
-func (plugin TestPlugin) Uninstall(ctx context.Context, metaData base.MetaData) error {
-	plugin.log.Info("Uninstall 'Test' custom plugin")
-	return nil
-}
-
-func (plugin TestPlugin) Sleep(ctx context.Context, metaData base.MetaData) error {
-	plugin.log.Info("Sleep 'Test' custom plugin")
-	return nil
-}
-
-func (plugin TestPlugin) Resume(ctx context.Context, metaData base.MetaData) error {
-	plugin.log.Info("Resume 'Test' custom plugin")
-	return nil
-}
-
-func main() {}
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
 ```
 
-## Creating a Plugin from Scratch
+### Private Registry Example
 
-This guide walks you through creating a custom plugin from start to finish.
+**Resource Definition with Image Pull Secrets:**
 
-### Step 1: Clone the Forkspacer Repository
+```yaml
+kind: Custom
+metadata:
+  name: private-module
+  version: 1.0.0
+  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+  description: "Custom module from private registry"
+  author: "DevOps Team"
+
+config:
+  - type: string
+    name: environment
+    alias: env
+    spec:
+      required: true
+      default: "production"
+      editable: true
+
+spec:
+  image: my-private-registry.com/org/private-module:v1.0.0
+  imagePullSecrets:
+    - private-registry-secret
+  permissions:
+    - workspace
+```
+
+**Creating the image pull secret:**
 
 ```bash
-git clone https://github.com/forkspacer/forkspacer
-cd forkspacer
+# Create the secret in the forkspacer-system namespace
+kubectl create secret docker-registry private-registry-secret \
+  --docker-server=my-private-registry.com \
+  --docker-username=myuser \
+  --docker-password=mypassword \
+  --docker-email=myemail@company.com \
+  -n forkspacer-system
 ```
 
-### Step 2: Create Plugin Directory
+**Important:** Custom module pods run in the `forkspacer-system` namespace, so the image pull secret must be created there.
 
-Create a new directory for your plugin in the `plugins` folder:
+### Advanced Module with Controller Permissions
+
+**Resource Definition:**
+
+```yaml
+kind: Custom
+metadata:
+  name: cluster-admin-module
+  version: 1.0.0
+  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+  description: "Module requiring cluster-wide access"
+  author: "Platform Team"
+  category: "Administration"
+
+config:
+  - type: boolean
+    name: enableClusterScanning
+    alias: scan
+    spec:
+      required: false
+      default: true
+      editable: true
+
+spec:
+  image: my-registry/cluster-admin:v1.0.0
+  permissions:
+    - controller
+```
+
+**Note:** This module will have access to the operator's main cluster via a service account with elevated permissions. Use with caution and only when necessary.
+
+## Creating a Custom Module from Scratch
+
+This guide walks you through creating a custom module from start to finish.
+
+### Step 1: Create Module Directory
+
+Create a directory for your custom module:
 
 ```bash
-mkdir -p plugins/my-plugin
+mkdir -p my-custom-module
+cd my-custom-module
 ```
 
-### Step 3: Create the Plugin Code
+### Step 2: Create HTTP Server
 
-Create a `main.go` file in your plugin directory:
+Create your HTTP server implementation. You can use any language that can run an HTTP server. Here's a Go example:
 
-```bash
-cd plugins/my-plugin
-```
-
-**`plugins/my-plugin/main.go`:**
+**`main.go`:**
 
 ```go
 package main
@@ -475,266 +591,103 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
-	"github.com/forkspacer/forkspacer/pkg/manager/base"
+	"go.uber.org/zap"
 )
 
-// Ensure the plugin implements the required interface
-var _ base.NewCustomManagerT = NewManager
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go listenForTermination(func() { cancel() })
 
-// NewManager is the required constructor function
-func NewManager(
-	ctx context.Context,
-	logger logr.Logger,
-	kubernetesConfig *rest.Config,
-	config map[string]any,
-) (base.IManager, error) {
-	// Create Kubernetes clients
-	kubernetesClient, err := kubernetes.NewForConfig(kubernetesConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+	logger := initLogger()
+	mux := setupRoutes(logger)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	dynamicClient, err := dynamic.NewForConfig(kubernetesConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	httpServer := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
 	}
 
-	// Extract configuration values
-	namespace := config["namespace"].(string)
-	appName := config["appName"].(string)
-	replicas := int32(config["replicas"].(int))
-
-	logger.Info("Initializing my-plugin",
-		"namespace", namespace,
-		"appName", appName,
-		"replicas", replicas,
-	)
-
-	return &MyPlugin{
-		logger:        logger,
-		k8sClient:     kubernetesClient,
-		dynamicClient: dynamicClient,
-		namespace:     namespace,
-		appName:       appName,
-		replicas:      replicas,
-	}, nil
+	logger.Info("Starting server", zap.String("port", port))
+	runServer(ctx, httpServer, logger)
+	logger.Info("Server stopped")
 }
 
-type MyPlugin struct {
-	logger        logr.Logger
-	k8sClient     *kubernetes.Clientset
-	dynamicClient dynamic.Interface
-	namespace     string
-	appName       string
-	replicas      int32
+func setupRoutes(logger *zap.Logger) *http.ServeMux {
+	mux := http.NewServeMux()
+	manager := NewManager(logger)
+	handler := NewHandler(logger, manager)
+
+	mux.HandleFunc("GET /health", handler.Health)
+	mux.HandleFunc("POST /install", handler.Install)
+	mux.HandleFunc("POST /uninstall", handler.Uninstall)
+	mux.HandleFunc("POST /sleep", handler.Sleep)
+	mux.HandleFunc("POST /resume", handler.Resume)
+
+	return mux
 }
 
-func (plugin *MyPlugin) Install(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Installing application",
-		"namespace", plugin.namespace,
-		"appName", plugin.appName,
-	)
-
-	// Create namespace if it doesn't exist
-	_, err := plugin.k8sClient.CoreV1().Namespaces().Get(ctx, plugin.namespace, metav1.GetOptions{})
-	if err != nil {
-		plugin.logger.Info("Creating namespace", "namespace", plugin.namespace)
-		_, err = plugin.k8sClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: plugin.namespace,
-			},
-		}, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to create namespace: %w", err)
-		}
-	}
-
-	// Create a deployment using dynamic client
-	deployment := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "apps/v1",
-			"kind":       "Deployment",
-			"metadata": map[string]interface{}{
-				"name":      plugin.appName,
-				"namespace": plugin.namespace,
-			},
-			"spec": map[string]interface{}{
-				"replicas": plugin.replicas,
-				"selector": map[string]interface{}{
-					"matchLabels": map[string]interface{}{
-						"app": plugin.appName,
-					},
-				},
-				"template": map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
-							"app": plugin.appName,
-						},
-					},
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
-								"name":  plugin.appName,
-								"image": "nginx:latest",
-								"ports": []interface{}{
-									map[string]interface{}{
-										"containerPort": 80,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	deploymentRes := schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	}
-
-	_, err = plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Create(
-		ctx, deployment, metav1.CreateOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create deployment: %w", err)
-	}
-
-	plugin.logger.Info("Installation completed successfully")
-	return nil
-}
-
-func (plugin *MyPlugin) Uninstall(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Uninstalling application", "namespace", plugin.namespace)
-
-	deploymentRes := schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	}
-
-	err := plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Delete(
-		ctx, plugin.appName, metav1.DeleteOptions{},
-	)
-	if err != nil {
-		plugin.logger.Error(err, "Failed to delete deployment")
-		return fmt.Errorf("failed to delete deployment: %w", err)
-	}
-
-	plugin.logger.Info("Uninstallation completed successfully")
-	return nil
-}
-
-func (plugin *MyPlugin) Sleep(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Hibernating application")
-
-	deploymentRes := schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	}
-
-	// Scale deployment to 0
-	deployment, err := plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Get(
-		ctx, plugin.appName, metav1.GetOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get deployment: %w", err)
-	}
-
-	unstructured.SetNestedField(deployment.Object, int64(0), "spec", "replicas")
-
-	_, err = plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Update(
-		ctx, deployment, metav1.UpdateOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to scale down deployment: %w", err)
-	}
-
-	plugin.logger.Info("Hibernation completed successfully")
-	return nil
-}
-
-func (plugin *MyPlugin) Resume(ctx context.Context, metaData base.MetaData) error {
-	plugin.logger.Info("Resuming application")
-
-	deploymentRes := schema.GroupVersionResource{
-		Group:    "apps",
-		Version:  "v1",
-		Resource: "deployments",
-	}
-
-	// Scale deployment back to original replicas
-	deployment, err := plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Get(
-		ctx, plugin.appName, metav1.GetOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get deployment: %w", err)
-	}
-
-	unstructured.SetNestedField(deployment.Object, int64(plugin.replicas), "spec", "replicas")
-
-	_, err = plugin.dynamicClient.Resource(deploymentRes).Namespace(plugin.namespace).Update(
-		ctx, deployment, metav1.UpdateOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to scale up deployment: %w", err)
-	}
-
-	plugin.logger.Info("Resume completed successfully")
-	return nil
-}
-
-// Required empty main function for Go plugins
-func main() {}
+// ... (handler and manager implementations)
 ```
 
-### Step 4: Build the Plugin
+### Step 3: Create Dockerfile
 
-Return to the forkspacer root directory and build the plugin using Make:
+**`Dockerfile`:**
+
+```dockerfile
+FROM golang:1.25 AS builder
+
+WORKDIR /workspace
+
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+COPY ./ ./
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -o plugin
+
+FROM alpine:3.22.2
+
+WORKDIR /output
+COPY --from=builder /workspace/plugin .
+
+ENV PORT=8080
+EXPOSE ${PORT}
+
+ENTRYPOINT ["./plugin"]
+```
+
+### Step 4: Build and Push Docker Image
+
+Build your module image:
 
 ```bash
-cd ../..  # Return to forkspacer root
-make build-plugin PLUGIN=my-plugin
-```
-
-This will:
-1. Build the plugin using Docker with the correct Go version and settings
-2. Compile with CGO enabled and `-buildmode=plugin`
-3. Output the compiled plugin to `plugins/my-plugin/plugin.so`
-
-**Output:**
-```
-Building plugin 'my-plugin' in Docker container...
-Plugin built successfully: plugins/my-plugin/plugin.so
-Plugin size: 15M
+docker build -t my-registry/my-module:v1.0.0 .
+docker push my-registry/my-module:v1.0.0
 ```
 
 ### Step 5: Create Resource Definition
 
-Create a resource definition YAML file for your plugin:
+Create a resource definition YAML file:
 
-**`my-plugin-resource.yaml`:**
+**`my-module-resource.yaml`:**
 
 ```yaml
 kind: Custom
 metadata:
-  name: my-plugin
+  name: my-module
   version: 1.0.0
   supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-  description: "My custom application plugin"
+  description: "My custom module"
   author: "Your Name"
   category: "Application"
 
@@ -765,14 +718,14 @@ config:
       editable: true
 
 spec:
-  repo:
-    file: https://your-server.com/plugins/my-plugin/plugin.so
+  image: my-registry/my-module:v1.0.0
+  permissions:
+    - workspace
 ```
 
-### Step 6: Deploy the Plugin
+### Step 6: Deploy the Module
 
-1. **Host the plugin binary** on an HTTP server or object storage
-2. **Create a Module** that uses your plugin:
+Create a Module that uses your custom module:
 
 ```yaml
 apiVersion: batch.forkspacer.com/v1
@@ -783,100 +736,62 @@ spec:
   workspace:
     name: dev-workspace
   source:
-    httpURL: https://your-server.com/resources/my-plugin-resource.yaml
+    httpURL: https://your-server.com/resources/my-module-resource.yaml
   config:
     namespace: my-namespace
     appName: my-application
     replicas: 3
 ```
 
-### Build Requirements
+## Module Distribution
 
-**Important considerations:**
+Custom modules are distributed as Docker container images. You can host them on:
 
-1. **Go Version**: Must match the operator's Go version
-2. **CGO**: Must be enabled (`CGO_ENABLED=1`)
-3. **Build Mode**: Must use `-buildmode=plugin`
-4. **Dependencies**: Plugin must have access to the same dependencies as the operator
-5. **Platform**: Plugin must be built for the same OS/architecture as the operator
+### Public Registries
 
-## Plugin Distribution
+**Docker Hub:**
+```yaml
+spec:
+  image: myusername/my-module:v1.0.0
+```
 
-After building plugins, they need to be made accessible to the operator via HTTP/HTTPS URLs.
+**GitHub Container Registry:**
+```yaml
+spec:
+  image: ghcr.io/myorg/my-module:v1.0.0
+```
 
-### Hosting Options
+### Private Registries
 
-**Static File Server:**
+For private registries, ensure your Kubernetes cluster has the appropriate image pull secrets configured in the `forkspacer-system` namespace:
+
+```yaml
+spec:
+  image: my-private-registry.com/my-module:v1.0.0
+  imagePullSecrets:
+    - my-registry-secret
+```
+
+**Create the secret:**
 ```bash
-# Serve plugins directory via HTTP
-cd plugins
-python3 -m http.server 8080
-
-# Access at: http://localhost:8080/test/plugin.so
+kubectl create secret docker-registry my-registry-secret \
+  --docker-server=my-private-registry.com \
+  --docker-username=myuser \
+  --docker-password=mypassword \
+  -n forkspacer-system
 ```
 
-**Object Storage:**
-- Amazon S3
-- Google Cloud Storage
-- Azure Blob Storage
-- MinIO
+### Versioning
 
-**Web Server:**
-- Nginx
-- Apache
-- GitHub Releases
+Use semantic versioning for your images:
 
-### Example Distribution Setup
-
-**Resource Definition:**
-```yaml
-kind: Custom
-metadata:
-  name: my-plugin
-  version: 1.0.0
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-spec:
-  repo:
-    file: https://releases.example.com/plugins/my-plugin/v1.0.0/plugin.so
-```
-
-**Hosting on GitHub Releases:**
 ```yaml
 spec:
-  repo:
-    file: https://github.com/org/repo/releases/download/v1.0.0/plugin.so
-```
-
-**Hosting on Object Storage:**
-```yaml
-spec:
-  repo:
-    file: https://storage.googleapis.com/my-bucket/plugins/my-plugin/plugin.so
-```
-
-### ConfigMap Distribution
-
-For internal or private plugins, use ConfigMaps:
-
-```bash
-# Create ConfigMap from plugin binary
-kubectl create configmap my-plugin \
-  --from-file=plugin=/path/to/plugin.so \
-  --namespace=default
-```
-
-**Resource Definition:**
-```yaml
-kind: Custom
-metadata:
-  name: my-plugin
-  version: 1.0.0
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-spec:
-  repo:
-    configMap:
-      name: my-plugin
-      namespace: default
+  image: my-registry/my-module:v1.0.0  # Specific version
+  # or
+  image: my-registry/my-module:v1      # Major version
+  # or
+  image: my-registry/my-module:latest  # Latest (not recommended for production)
 ```
 
 ## Usage in Modules
@@ -917,40 +832,40 @@ spec:
         version: 1.0.0
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
       spec:
-        repo:
-          file: https://example.com/plugins/app-installer/plugin.so
+        image: my-registry/app-installer:v1.0.0
   config:
     namespace: my-namespace
 ```
 
 ## Best Practices
 
-### Plugin Development
+### Module Development
 
-1. **Interface Implementation**: Always implement all four methods (Install, Uninstall, Sleep, Resume)
-2. **Error Handling**: Return meaningful errors with context
-3. **Logging**: Use structured logging with the provided logger
+1. **API Implementation**: Always implement all five endpoints (health, install, uninstall, sleep, resume)
+2. **Error Handling**: Return meaningful HTTP status codes and error messages
+3. **Logging**: Use structured logging for debugging and monitoring
 4. **Idempotency**: Ensure operations can be safely retried
 5. **Context Handling**: Respect context cancellation signals
-6. **Configuration Validation**: Validate configuration in the NewManager function
-7. **Resource Cleanup**: Properly clean up resources in Uninstall
+6. **Configuration Validation**: Validate configuration in the install endpoint
+7. **Resource Cleanup**: Properly clean up resources in uninstall
+8. **State Management**: Use metadata to persist state across lifecycle operations
 
 ### Building and Testing
 
-1. **Build Consistency**: Always use the Makefile or Docker build process
-2. **Version Compatibility**: Ensure plugin is built with matching operator version
-3. **Testing**: Test plugins in isolation before deployment
-4. **Dependencies**: Minimize external dependencies
-5. **Binary Size**: Keep plugin binaries small and efficient
+1. **Containerization**: Use multi-stage Docker builds to minimize image size
+2. **Security**: Don't include secrets in images; use Kubernetes secrets
+3. **Testing**: Test modules in isolation before deployment
+4. **Dependencies**: Pin dependency versions for reproducibility
+5. **Health Checks**: Implement robust health check endpoints
 
 ### Deployment
 
-1. **Security**: Avoid hardcoding secrets; use Kubernetes secrets
-2. **Distribution**: Host plugins on accessible HTTP/HTTPS URLs or ConfigMaps
-3. **Version Control**: Keep source code in version control
-4. **Documentation**: Document plugin behavior and configuration
-5. **Monitoring**: Include appropriate logging for observability
-6. **Versioning**: Use versioned URLs for plugin distribution (e.g., `/v1.0.0/plugin.so`)
+1. **Image Registry**: Use reliable container registries with good availability
+2. **Version Control**: Keep source code in version control
+3. **Documentation**: Document module behavior and configuration
+4. **Monitoring**: Include appropriate logging for observability
+5. **Versioning**: Use semantic versioning for images
+6. **Security Scanning**: Scan images for vulnerabilities before deployment
 
 ### Configuration Design
 
@@ -961,6 +876,4 @@ spec:
 
 ## Related Resources
 
-- [Helm Resources](./helm.md) - Helm chart-based resources
-- [Overview](./overview.md) - Resource definitions overview
-- [Module CRD](/reference/crds/module/) - Using resources in Modules
+- [Plugin Development Guide](/development/plugin-development/) - Detailed guide for creating custom modules
