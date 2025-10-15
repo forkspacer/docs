@@ -163,7 +163,7 @@ cleanup:
 
 ### Migration
 
-Configure data migration behavior for workspace forking. When a workspace is forked with `migrateData: true`, the operator will migrate PersistentVolumeClaims (PVCs) from the source module to the destination module.
+Configure data migration behavior for workspace forking. When a workspace is forked with `migrateData: true`, the operator will migrate PersistentVolumeClaims (PVCs), Secrets, and ConfigMaps from the source module to the destination module.
 
 ```yaml
 migration:
@@ -172,6 +172,15 @@ migration:
     names:         # List of PVC names to migrate (supports templating)
       - "data-{{ .releaseName }}-0"
       - "logs-{{ .releaseName }}-0"
+  secret:
+    enabled: true  # Enable Secret migration for this module
+    names:         # List of Secret names to migrate (supports templating)
+      - "{{ .releaseName }}"
+      - "{{ .releaseName }}-tls"
+  configMap:
+    enabled: true  # Enable ConfigMap migration for this module
+    names:         # List of ConfigMap names to migrate (supports templating)
+      - "{{ .releaseName }}-config"
 ```
 
 **Fields:**
@@ -179,7 +188,11 @@ migration:
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | `pvc.enabled` | boolean | Enable PVC migration for this Helm module | No (default: `false`) |
-| `pvc.names` | array of strings | List of PVC names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when enabled) |
+| `pvc.names` | array of strings | List of PVC names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `pvc.enabled` is true) |
+| `secret.enabled` | boolean | Enable Secret migration for this Helm module | No (default: `false`) |
+| `secret.names` | array of strings | List of Secret names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `secret.enabled` is true) |
+| `configMap.enabled` | boolean | Enable ConfigMap migration for this Helm module | No (default: `false`) |
+| `configMap.names` | array of strings | List of ConfigMap names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `configMap.enabled` is true) |
 
 **How Migration Works:**
 
@@ -187,19 +200,22 @@ migration:
 2. For each module, the operator:
    - Creates a new module instance in the destination workspace
    - Hibernates both source and destination modules
-   - Migrates the specified PVCs using the [pv-migrate](https://github.com/utkuozdemir/pv-migrate) tool
+   - Migrates PVCs (if enabled)
+   - Migrates Secrets (if enabled)
+   - Migrates ConfigMaps (if enabled)
    - Restores the source module to its original state
-   - Wakes up the both source and destination modules
+   - Wakes up both source and destination modules
 
 **⚠️ Important Notes:**
 
 - **Temporary Downtime**: Both source and destination modules are temporarily hibernated during migration to ensure data consistency
-- **Not 100% Guaranteed**: Migration depends on storage class compatibility, cluster connectivity, and PVC accessibility
-- **Template Support**: PVC names support templating to dynamically reference the release name and config values
-- **Selective Migration**: Only the specified PVCs are migrated; other data or configurations must be handled separately
+- **Not 100% Guaranteed**: Migration depends on storage class compatibility, cluster connectivity, and resource accessibility
+- **Template Support**: Resource names support templating to dynamically reference the release name and config values
+- **Selective Migration**: Only the specified resources are migrated; other data or configurations must be handled separately
 - **Source Preservation**: The source workspace and its data remain unchanged after migration
+- **Immutable Resources**: If a Secret or ConfigMap is marked as immutable in the destination, it will be deleted and recreated while preserving its labels and annotations
 
-**Example with Redis (Single Master):**
+**Example with Redis (Single Master with PVC and Secret migration):**
 
 ```yaml
 spec:
@@ -220,6 +236,10 @@ spec:
       enabled: true
       names:
         - "redis-data-{{ .releaseName }}-master-0"
+    secret:
+      enabled: true
+      names:
+        - "{{ .releaseName }}"  # Migrates the Redis password secret
 ```
 
 **Example with Redis (Master + Replicas):**
@@ -240,7 +260,7 @@ spec:
         - "redis-data-{{ .releaseName }}-replicas-1"
 ```
 
-**Example with PostgreSQL:**
+**Example with PostgreSQL (with PVC, Secret, and ConfigMap migration):**
 
 ```yaml
 spec:
@@ -259,6 +279,14 @@ spec:
       enabled: true
       names:
         - "data-{{ .releaseName }}-postgresql-0"
+    secret:
+      enabled: true
+      names:
+        - "{{ .releaseName }}"  # Migrates PostgreSQL password secret
+    configMap:
+      enabled: true
+      names:
+        - "{{ .releaseName }}-configuration"  # Migrates PostgreSQL configuration
 ```
 
 ## Templating
@@ -476,6 +504,10 @@ spec:
       enabled: true
       names:
         - "redis-data-{{ .releaseName }}-master-0"
+    secret:
+      enabled: true
+      names:
+        - "{{ .releaseName }}"  # Migrates Redis password secret
 ```
 
 ## Usage in Modules
@@ -536,6 +568,10 @@ spec:
             enabled: true
             names:
               - "redis-data-{{ .releaseName }}-master-0"
+          secret:
+            enabled: true
+            names:
+              - "{{ .releaseName }}"
 ```
 
 ## Values File Distribution

@@ -65,9 +65,9 @@ The `from` field allows you to create a workspace by forking from an existing wo
 |-------|------|-------------|----------|
 | `name` | string | Name of the source workspace to fork from. | Yes |
 | `namespace` | string | Namespace of the source workspace. | Yes (default: `default`) |
-| `migrateData` | boolean | Whether to migrate persistent data (PVCs) from source workspace modules to the new workspace. | No (default: `false`) |
+| `migrateData` | boolean | Whether to migrate persistent data (PVCs, Secrets, ConfigMaps) from source workspace modules to the new workspace. | No (default: `false`) |
 
-**Note:** Data migration is not 100% guaranteed and depends on factors such as storage class compatibility, cluster connectivity, and PVC accessibility. The operator uses the `pv-migrate` tool to perform data migrations between workspaces.
+**Note:** Data migration is not 100% guaranteed and depends on factors such as storage class compatibility, cluster connectivity, and resource accessibility.
 
 **Example - Simple Forking:**
 
@@ -228,7 +228,7 @@ spec:
 
 ### Forking with Data Migration
 
-Create a copy of an existing workspace and migrate persistent data (PVCs) from the source workspace:
+Create a copy of an existing workspace and migrate persistent data (PVCs, Secrets, ConfigMaps) from the source workspace:
 
 ```yaml
 apiVersion: batch.forkspacer.com/v1
@@ -245,10 +245,11 @@ spec:
 **⚠️ Important Considerations for Data Migration:**
 
 - **Temporary Downtime**: The migration process will temporarily hibernate both source and destination modules during data transfer to ensure data consistency
-- **Migration Requirements**: Helm modules in the source workspace must have `migration.pvc` configuration defined in their resource definitions
-- **Not 100% Guaranteed**: Migration may fail due to storage class incompatibilities, cluster connectivity issues, or PVC accessibility problems
-- **Selective Migration**: Only Helm modules with PVC migration enabled will have their data migrated
+- **Migration Requirements**: Helm modules in the source workspace must have migration configuration defined in their resource definitions (e.g., `migration.pvc`, `migration.secret`, `migration.configMap`)
+- **Not 100% Guaranteed**: Migration may fail due to storage class incompatibilities, cluster connectivity issues, or resource accessibility problems
+- **Selective Migration**: Only Helm modules with migration enabled for specific resource types will have their data migrated
 - **Source Preservation**: The source workspace and its data remain unchanged after migration (original hibernation state is restored)
+- **Immutable Resources**: If a Secret or ConfigMap is marked as immutable in the destination, it will be deleted and recreated while preserving its labels and annotations
 
 ### Hibernating a Workspace Manually
 
