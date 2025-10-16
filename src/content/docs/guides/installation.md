@@ -35,10 +35,28 @@ kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-we
 
 ### 2. Deploy Forkspacer
 
-Install the Forkspacer operator and Custom Resource Definitions (CRDs):
+Install the Forkspacer operator using Helm:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/forkspacer/forkspacer/main/dist/install.yaml
+# Add the Forkspacer Helm repository
+helm repo add forkspacer https://forkspacer.github.io/forkspacer
+helm repo update
+
+# Install Forkspacer
+helm install forkspacer forkspacer/forkspacer \
+  --namespace forkspacer-system \
+  --create-namespace
+```
+
+For advanced configuration options:
+
+```bash
+# Install with custom values
+helm install forkspacer forkspacer/forkspacer \
+  --namespace forkspacer-system \
+  --create-namespace \
+  --set operator-ui.enabled=true \
+  --set ingress.enabled=true
 ```
 
 ### 3. Verify Installation
@@ -114,8 +132,8 @@ To remove Forkspacer from your cluster:
 kubectl delete workspaces --all -A
 kubectl delete modules --all -A
 
-# Remove the operator
-kubectl delete -f https://raw.githubusercontent.com/forkspacer/forkspacer/main/dist/install.yaml
+# Remove the operator using Helm
+helm uninstall forkspacer -n forkspacer-system
 
 # Optionally remove cert-manager
 kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
