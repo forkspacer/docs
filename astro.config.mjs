@@ -11,7 +11,14 @@ export default defineConfig({
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/forkspacer' }],
 			sidebar: [
 				{
-					label: 'Guides',
+					label: 'Introduction',
+					items: [
+						{ label: 'What is Forkspacer?', link: '/introduction/overview/' },
+						{ label: 'Core Concepts', link: '/introduction/concepts/' },
+					],
+				},
+				{
+					label: 'Getting Started',
 					autogenerate: { directory: 'guides' },
 				},
 				{

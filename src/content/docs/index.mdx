@@ -17,20 +17,19 @@ hero:
       link: https://github.com/forkspacer/forkspacer
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## Next steps
 
 <CardGrid stagger>
-	<Card title="Create a workspace" icon="pencil">
-		Create workspaces to connect local or remote Kubernetes clusters and install modules to them. You can hibernate workspaces to sleep or resume the modules installed in them.
+	<Card title="Create a Workspace" icon="pencil">
+		A Workspace is an isolated Kubernetes environment that can be hibernated and forked. Workspaces can automatically hibernate on a schedule to save costs.
 ```yaml
 apiVersion: batch.forkspacer.com/v1
 kind: Workspace
 metadata:
   name: default
   namespace: default
-
 spec:
   type: kubernetes
   connection:
@@ -40,9 +39,10 @@ spec:
     schedule: "0 42 18 * * *"
     wakeSchedule: "0 42 19 * * *"
 ```
+> **Auto-hibernation?** Workspaces can automatically sleep during off-hours (like nights and weekends) to reduce cloud costs, then wake up when needed. [Learn more →](/introduction/concepts/#workspace)
 	</Card>
-	<Card title="Install a module" icon="add-document">
-		Manage your environments via pre-defined and configurable modules.
+	<Card title="Deploy a Module" icon="add-document">
+		A Module installs an application into a workspace using a reusable module definition.
 ```yaml
 apiVersion: batch.forkspacer.com/v1
 kind: Module
@@ -59,10 +59,24 @@ spec:
     version: 21.2.7
     replicaCount: 0
 ```
+> **What's httpURL?** It points to a module definition - a reusable template that describes how to install Redis. [Learn more →](/introduction/concepts/#module-definition)
 	</Card>
-	<Card title="Module examples" icon="setting">
-	<details>
-	<summary>Helm redis example</summary>
+	<Card title="Understand Core Concepts" icon="star">
+		Learn about Workspaces, Modules, Module Definitions, and how Forkspacer manages environments with hibernation and forking.
+
+    	[Learn core concepts →](/introduction/concepts/)
+    </Card>
+    <Card title="Get Started" icon="rocket">
+    	Install Forkspacer in your cluster and create your first workspace in 5 minutes.
+
+    	[Installation guide →](/guides/installation/)
+    </Card>
+    <Card title="Module Definition Examples" icon="setting">
+    	Module definitions describe HOW to install applications. They can be Helm-based or custom containers.
+
+    	<details>
+    	<summary>Helm Module Definition Example</summary>
+
 ```yaml
 kind: Helm
 metadata:
@@ -121,22 +135,35 @@ spec:
     removeNamespace: false
     removePVCs: true
 ```
-</details>
 
-  <details>
-	<summary>Custom module example</summary>
- ```yaml
- kind: Custom
- metadata:
-   name: test
-   supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+    	</details>
 
- spec:
-   image: "my-registry/custom-module:v1.0.0"
- ```
- </details>
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Forkspacer Docs](/guides/installation/).
-	</Card>
+    	<details>
+    	<summary>Custom Module Definition Example</summary>
+
+```yaml
+kind: Custom
+metadata:
+  name: custom-installer
+  version: "1.0.0"
+  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
+  description: "Custom installation via container"
+
+config:
+  - type: string
+    name: "Environment"
+    alias: "environment"
+    spec:
+      default: "development"
+      required: true
+
+spec:
+  image: "my-registry/custom-module:v1.0.0"
+```
+
+    	</details>
+
+    	[Learn about module definitions →](/reference/resources/overview/)
+    </Card>
+
 </CardGrid>

@@ -2,10 +2,8 @@
 title: Module
 description: Module Custom Resource Definition reference
 sidebar:
-    order: 3
+  order: 3
 ---
-
-# Module
 
 The `Module` resource represents an installable component or application that can be deployed into a `Workspace`. Modules reference resource definitions (Helm charts or custom modules) and support hibernation to reduce resource consumption.
 
@@ -65,27 +63,28 @@ spec:
 
 The `.spec` field defines the desired state of the Module.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `source` | object | Source location of the module manifests. See [Source](#source). | Yes |
-| `workspace` | object | Reference to the workspace where this module should be deployed. See [WorkspaceReference](#workspacereference). | Yes |
-| `config` | object | Custom configuration for the module (arbitrary key-value pairs). | No |
-| `hibernated` | boolean | Whether the module should be in hibernated state. | No (default: `false`) |
+| Field        | Type    | Description                                                                                                     | Required              |
+| ------------ | ------- | --------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `source`     | object  | Source location of the module manifests. See [Source](#source).                                                 | Yes                   |
+| `workspace`  | object  | Reference to the workspace where this module should be deployed. See [WorkspaceReference](#workspacereference). | Yes                   |
+| `config`     | object  | Custom configuration for the module (arbitrary key-value pairs).                                                | No                    |
+| `hibernated` | boolean | Whether the module should be in hibernated state.                                                               | No (default: `false`) |
 
 ### Source
 
 The `source` field specifies where the resource definition should be loaded from. Resource definitions describe either Helm charts or custom modules with their configuration schemas. Only one source type should be specified.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `raw` | object | Raw resource definition embedded directly in the Module resource. | No |
-| `configMap` | object | Reference to a ConfigMap containing the resource definition. See [ConfigMapSource](#configmapsource). | No |
-| `httpURL` | string | HTTP/HTTPS URL pointing to a resource definition YAML file. | No |
-| `existingHelmRelease` | object | Reference to an existing Helm release to adopt and track. See [ExistingHelmReleaseSource](#existinghelmreleasesource). | No |
+| Field                 | Type   | Description                                                                                                            | Required |
+| --------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- | -------- |
+| `raw`                 | object | Raw resource definition embedded directly in the Module resource.                                                      | No       |
+| `configMap`           | object | Reference to a ConfigMap containing the resource definition. See [ConfigMapSource](#configmapsource).                  | No       |
+| `httpURL`             | string | HTTP/HTTPS URL pointing to a resource definition YAML file.                                                            | No       |
+| `existingHelmRelease` | object | Reference to an existing Helm release to adopt and track. See [ExistingHelmReleaseSource](#existinghelmreleasesource). | No       |
 
 **Resource Definition Types:**
 
 The source must point to or contain a resource definition with one of these kinds:
+
 - **`Helm`**: Deploys a Helm chart - [Learn more →](/reference/resources/helm/)
 - **`Custom`**: Runs a custom containerized module - [Learn more →](/reference/resources/custom/)
 
@@ -141,9 +140,9 @@ spec:
 
 The `configMap` source type references a Kubernetes ConfigMap that contains the resource definition.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Name of the ConfigMap. | Yes |
+| Field       | Type   | Description                 | Required                            |
+| ----------- | ------ | --------------------------- | ----------------------------------- |
+| `name`      | string | Name of the ConfigMap.      | Yes                                 |
 | `namespace` | string | Namespace of the ConfigMap. | No (defaults to Module's namespace) |
 
 The ConfigMap must contain a key named `module.yaml` with the resource definition as its value:
@@ -172,9 +171,9 @@ data:
 
 The `existingHelmRelease` source type allows you to adopt and track existing Helm releases without reinstalling them. This is useful when you have pre-existing Helm releases in your cluster and want to manage them through Forkspacer without disruption.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Name of the existing Helm release. | Yes |
+| Field       | Type   | Description                                    | Required                   |
+| ----------- | ------ | ---------------------------------------------- | -------------------------- |
+| `name`      | string | Name of the existing Helm release.             | Yes                        |
 | `namespace` | string | Namespace where the Helm release is installed. | No (defaults to `default`) |
 
 **Important:** When a Module with an adopted Helm release is deleted, the underlying Helm release is **not** uninstalled. The Module only detaches from the release, leaving it running in the cluster.
@@ -183,9 +182,9 @@ The `existingHelmRelease` source type allows you to adopt and track existing Hel
 
 The `workspace` field references the target workspace where the module will be deployed.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Name of the target workspace. | Yes |
+| Field       | Type   | Description                        | Required                |
+| ----------- | ------ | ---------------------------------- | ----------------------- |
+| `name`      | string | Name of the target workspace.      | Yes                     |
 | `namespace` | string | Namespace of the target workspace. | No (default: `default`) |
 
 **Example:**
@@ -217,12 +216,12 @@ spec:
 
 The `.status` field reflects the observed state of the Module.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `phase` | string | Current phase of the module. Values: `ready`, `installing`, `uninstalling`, `sleeping`, `sleeped`, `resuming`, `failed`. | Yes |
-| `lastActivity` | string (date-time) | Timestamp of the last activity for this module. | No |
-| `message` | string | Human-readable message about the current state. | No |
-| `conditions` | array | Standard Kubernetes conditions. See [Conditions](#conditions). | No |
+| Field          | Type               | Description                                                                                                              | Required |
+| -------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `phase`        | string             | Current phase of the module. Values: `ready`, `installing`, `uninstalling`, `sleeping`, `sleeped`, `resuming`, `failed`. | Yes      |
+| `lastActivity` | string (date-time) | Timestamp of the last activity for this module.                                                                          | No       |
+| `message`      | string             | Human-readable message about the current state.                                                                          | No       |
+| `conditions`   | array              | Standard Kubernetes conditions. See [Conditions](#conditions).                                                           | No       |
 
 ### Conditions
 
@@ -234,14 +233,14 @@ Standard Kubernetes condition types used to represent the module state:
 
 Each condition has the following fields:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | string | Condition type (e.g., "Available", "Progressing", "Degraded"). |
-| `status` | string | Condition status: `True`, `False`, or `Unknown`. |
-| `lastTransitionTime` | string (date-time) | Last time the condition transitioned. |
-| `reason` | string | Programmatic identifier for the condition's last transition. |
-| `message` | string | Human-readable message explaining the condition. |
-| `observedGeneration` | integer | The `.metadata.generation` that the condition was set based upon. |
+| Field                | Type               | Description                                                       |
+| -------------------- | ------------------ | ----------------------------------------------------------------- |
+| `type`               | string             | Condition type (e.g., "Available", "Progressing", "Degraded").    |
+| `status`             | string             | Condition status: `True`, `False`, or `Unknown`.                  |
+| `lastTransitionTime` | string (date-time) | Last time the condition transitioned.                             |
+| `reason`             | string             | Programmatic identifier for the condition's last transition.      |
+| `message`            | string             | Human-readable message explaining the condition.                  |
+| `observedGeneration` | integer            | The `.metadata.generation` that the condition was set based upon. |
 
 ## Phase Values
 

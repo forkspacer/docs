@@ -2,10 +2,8 @@
 title: Workspace
 description: Workspace Custom Resource Definition reference
 sidebar:
-    order: 2
+  order: 2
 ---
-
-# Workspace
 
 The `Workspace` resource represents a Kubernetes environment that can be managed, hibernated, and forked by the forkspacer operator. It provides capabilities for environment lifecycle management, including automatic hibernation scheduling and connection configuration.
 
@@ -35,23 +33,23 @@ spec:
 
 The `.spec` field defines the desired state of the Workspace.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `type` | string | Type of workspace. Currently only supports `kubernetes`. | No (default: `kubernetes`) |
-| `from` | object | Reference to another workspace to fork from. See [FromReference](#fromreference). | No |
-| `hibernated` | boolean | Whether the workspace should be in hibernated state. | No (default: `false`) |
-| `connection` | object | Configuration for connecting to the workspace. See [Connection](#connection). | No |
-| `autoHibernation` | object | Configuration for automatic hibernation scheduling. See [AutoHibernation](#autohibernation). | No |
+| Field             | Type    | Description                                                                                  | Required                   |
+| ----------------- | ------- | -------------------------------------------------------------------------------------------- | -------------------------- |
+| `type`            | string  | Type of workspace. Currently only supports `kubernetes`.                                     | No (default: `kubernetes`) |
+| `from`            | object  | Reference to another workspace to fork from. See [FromReference](#fromreference).            | No                         |
+| `hibernated`      | boolean | Whether the workspace should be in hibernated state.                                         | No (default: `false`)      |
+| `connection`      | object  | Configuration for connecting to the workspace. See [Connection](#connection).                | No                         |
+| `autoHibernation` | object  | Configuration for automatic hibernation scheduling. See [AutoHibernation](#autohibernation). | No                         |
 
 ### FromReference
 
 The `from` field allows you to create a workspace by forking from an existing workspace. Forking creates a new workspace with copies of all modules from the source workspace. Optionally, you can migrate persistent data from the source workspace to the new workspace.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Name of the source workspace to fork from. | Yes |
-| `namespace` | string | Namespace of the source workspace. | Yes (default: `default`) |
-| `migrateData` | boolean | Whether to migrate persistent data (PVCs, Secrets, ConfigMaps) from source workspace modules to the new workspace. | No (default: `false`) |
+| Field         | Type    | Description                                                                                                        | Required                 |
+| ------------- | ------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| `name`        | string  | Name of the source workspace to fork from.                                                                         | Yes                      |
+| `namespace`   | string  | Namespace of the source workspace.                                                                                 | Yes (default: `default`) |
+| `migrateData` | boolean | Whether to migrate persistent data (PVCs, Secrets, ConfigMaps) from source workspace modules to the new workspace. | No (default: `false`)    |
 
 **Note:** Data migration is not 100% guaranteed and depends on factors such as storage class compatibility, cluster connectivity, and resource accessibility.
 
@@ -78,10 +76,10 @@ spec:
 
 The `connection` field configures how the operator connects to the workspace.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `type` | string | Connection type. Options: `local`, `in-cluster`, `kubeconfig`. | Yes (default: `local`) |
-| `secretReference` | object | Reference to a secret containing connection credentials. See [SecretReference](#secretreference). | No |
+| Field             | Type   | Description                                                                                       | Required               |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------- | ---------------------- |
+| `type`            | string | Connection type. Options: `local`, `in-cluster`, `kubeconfig`.                                    | Yes (default: `local`) |
+| `secretReference` | object | Reference to a secret containing connection credentials. See [SecretReference](#secretreference). | No                     |
 
 **Example:**
 
@@ -98,24 +96,25 @@ spec:
 
 The `secretReference` field within `connection` specifies a Kubernetes Secret containing connection credentials.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Name of the secret. | Yes |
+| Field       | Type   | Description              | Required                |
+| ----------- | ------ | ------------------------ | ----------------------- |
+| `name`      | string | Name of the secret.      | Yes                     |
 | `namespace` | string | Namespace of the secret. | No (default: `default`) |
 
 ### AutoHibernation
 
 The `autoHibernation` field enables automatic hibernation and wake scheduling based on cron expressions.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `enabled` | boolean | Whether auto-hibernation is enabled. | No (default: `false`) |
-| `schedule` | string | Cron expression for hibernation schedule. Supports standard 5-field format or 6-field format with optional seconds. | Yes (when enabled) |
-| `wakeSchedule` | string | Cron expression for wake schedule. Supports standard 5-field format or 6-field format with optional seconds. | No |
+| Field          | Type    | Description                                                                                                         | Required              |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `enabled`      | boolean | Whether auto-hibernation is enabled.                                                                                | No (default: `false`) |
+| `schedule`     | string  | Cron expression for hibernation schedule. Supports standard 5-field format or 6-field format with optional seconds. | Yes (when enabled)    |
+| `wakeSchedule` | string  | Cron expression for wake schedule. Supports standard 5-field format or 6-field format with optional seconds.        | No                    |
 
 **Cron Format:**
 
 The cron expressions support two formats:
+
 - **5-field format**: `minute hour day month weekday` (e.g., `0 22 * * *`)
 - **6-field format**: `second minute hour day month weekday` (e.g., `0 0 22 * * *`)
 
@@ -125,22 +124,22 @@ The cron expressions support two formats:
 spec:
   autoHibernation:
     enabled: true
-    schedule: "0 22 * * *"        # 5-field: Hibernate at 10 PM daily
-    wakeSchedule: "0 0 6 * * *"   # 6-field: Wake at 6 AM daily (with seconds)
+    schedule: "0 22 * * *" # 5-field: Hibernate at 10 PM daily
+    wakeSchedule: "0 0 6 * * *" # 6-field: Wake at 6 AM daily (with seconds)
 ```
 
 ## Status Fields
 
 The `.status` field reflects the observed state of the Workspace.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `phase` | string | Current phase of the workspace. Values: `ready`, `hibernated`, `failed`, `terminating`. | Yes |
-| `ready` | boolean | Indicates if the workspace is fully operational. | No (default: `false`) |
-| `lastActivity` | string (date-time) | Timestamp of the last activity in the workspace. | No |
-| `hibernatedAt` | string (date-time) | Timestamp when the workspace was hibernated. | No |
-| `message` | string | Human-readable message about the current state. | No |
-| `conditions` | array | Standard Kubernetes conditions. See [Conditions](#conditions). | No |
+| Field          | Type               | Description                                                                             | Required              |
+| -------------- | ------------------ | --------------------------------------------------------------------------------------- | --------------------- |
+| `phase`        | string             | Current phase of the workspace. Values: `ready`, `hibernated`, `failed`, `terminating`. | Yes                   |
+| `ready`        | boolean            | Indicates if the workspace is fully operational.                                        | No (default: `false`) |
+| `lastActivity` | string (date-time) | Timestamp of the last activity in the workspace.                                        | No                    |
+| `hibernatedAt` | string (date-time) | Timestamp when the workspace was hibernated.                                            | No                    |
+| `message`      | string             | Human-readable message about the current state.                                         | No                    |
+| `conditions`   | array              | Standard Kubernetes conditions. See [Conditions](#conditions).                          | No                    |
 
 ### Conditions
 
@@ -152,14 +151,14 @@ Standard Kubernetes condition types used to represent the workspace state:
 
 Each condition has the following fields:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | string | Condition type (e.g., "Available", "Progressing", "Degraded"). |
-| `status` | string | Condition status: `True`, `False`, or `Unknown`. |
-| `lastTransitionTime` | string (date-time) | Last time the condition transitioned. |
-| `reason` | string | Programmatic identifier for the condition's last transition. |
-| `message` | string | Human-readable message explaining the condition. |
-| `observedGeneration` | integer | The `.metadata.generation` that the condition was set based upon. |
+| Field                | Type               | Description                                                       |
+| -------------------- | ------------------ | ----------------------------------------------------------------- |
+| `type`               | string             | Condition type (e.g., "Available", "Progressing", "Degraded").    |
+| `status`             | string             | Condition status: `True`, `False`, or `Unknown`.                  |
+| `lastTransitionTime` | string (date-time) | Last time the condition transitioned.                             |
+| `reason`             | string             | Programmatic identifier for the condition's last transition.      |
+| `message`            | string             | Human-readable message explaining the condition.                  |
+| `observedGeneration` | integer            | The `.metadata.generation` that the condition was set based upon. |
 
 ## Phase Values
 
@@ -193,8 +192,8 @@ metadata:
 spec:
   autoHibernation:
     enabled: true
-    schedule: "0 18 * * 1-5"  # Hibernate on weekday evenings
-    wakeSchedule: "0 8 * * 1-5"  # Wake on weekday mornings
+    schedule: "0 18 * * 1-5" # Hibernate on weekday evenings
+    wakeSchedule: "0 8 * * 1-5" # Wake on weekday mornings
 ```
 
 ### Forking from Another Workspace

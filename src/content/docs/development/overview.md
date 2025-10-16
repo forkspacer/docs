@@ -5,8 +5,6 @@ sidebar:
   order: 1
 ---
 
-# Development Overview
-
 This guide covers the development workflow for contributing to the Forkspacer operator, including setting up your development environment, building, testing, and running the operator locally.
 
 ## Prerequisites
@@ -61,11 +59,13 @@ make dev-host
 ```
 
 This runs the operator against your current kubeconfig context. It's useful for:
+
 - Quick testing of controller logic
 - Debugging with your IDE
 - Fast iteration without image builds
 
 **Important Notes:**
+
 - **Webhooks are disabled** - The operator runs with `ENABLE_WEBHOOKS=false`, so validation and defaulting webhooks won't be active
 - **Use `local` connection type** - When creating Workspaces in dev-host mode, use `type: local` instead of `type: in-cluster` for the connection configuration
 - Your kubeconfig must point to a running cluster (Kind, minikube, etc.)
@@ -81,7 +81,7 @@ metadata:
 spec:
   type: kubernetes
   connection:
-    type: local  # Use 'local' when running with dev-host
+    type: local # Use 'local' when running with dev-host
     secretReference:
       name: local
 ```
@@ -95,6 +95,7 @@ make dev-kind
 ```
 
 This will:
+
 1. Delete any existing `operator-dev` Kind cluster
 2. Create a fresh Kind cluster
 3. Install cert-manager
@@ -104,6 +105,7 @@ This will:
 7. Deploy the operator
 
 **Benefits of Kind Development:**
+
 - Isolated environment that won't affect other clusters
 - Tests the full deployment process
 - Validates webhook configurations
@@ -177,6 +179,7 @@ make test-e2e
 ```
 
 This will:
+
 1. Create a Kind cluster named `operator-test-e2e` (if it doesn't exist)
 2. Run e2e tests using Ginkgo
 3. Clean up the Kind cluster after tests complete
@@ -247,12 +250,14 @@ Platforms: `linux/arm64`, `linux/amd64`, `linux/s390x`, `linux/ppc64le`
 ### Debugging
 
 1. **Enable verbose logging**: Set environment variable before running:
+
    ```bash
    export LOG_LEVEL=debug
    make dev-host
    ```
 
 2. **Use delve for debugging**:
+
    ```bash
    dlv debug ./cmd/main.go
    ```

@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-# Resources Overview
+# Resources
 
 Resources are YAML definition files that describe how modules should be installed and configured within a workspace. They provide a declarative way to define Helm charts or custom modules with user-configurable parameters.
 
@@ -24,6 +24,7 @@ The forkspacer operator supports two types of resources:
 - Cleanup policies
 
 **Use Cases:**
+
 - Deploying standard applications from Helm charts
 - Database deployments (PostgreSQL, MySQL, Redis, etc.)
 - Monitoring stacks (Prometheus, Grafana)
@@ -42,6 +43,7 @@ The forkspacer operator supports two types of resources:
 - Support for hibernation and resume operations
 
 **Use Cases:**
+
 - Custom application installations requiring complex logic
 - Advanced Kubernetes resource management
 - Integration with external systems and APIs
@@ -72,25 +74,24 @@ config:
     name: <config-name>
     alias: <config-alias>
     spec: <type-specific-spec>
-spec:
-  <kind-specific-spec>
+spec: <kind-specific-spec>
 ```
 
 ## Metadata
 
 Resource metadata provides information about the resource definition:
 
-| Field | Description | Required |
-|-------|-------------|----------|
-| `name` | Unique identifier for the resource | Yes |
-| `version` | Semantic version of the resource definition | Yes |
-| `supportedOperatorVersion` | Operator version constraint (e.g., ">= 0.0.0, < 1.0.0", "~1.2.0") | Yes |
-| `author` | Resource maintainer or author | No |
-| `description` | Human-readable description | No |
-| `category` | Resource category for organization | No |
-| `image` | Icon or logo URL | No |
-| `resource_usage.cpu` | Expected CPU usage (e.g., "500m") | No |
-| `resource_usage.memory` | Expected memory usage (e.g., "1Gi") | No |
+| Field                      | Description                                                       | Required |
+| -------------------------- | ----------------------------------------------------------------- | -------- |
+| `name`                     | Unique identifier for the resource                                | Yes      |
+| `version`                  | Semantic version of the resource definition                       | Yes      |
+| `supportedOperatorVersion` | Operator version constraint (e.g., ">= 0.0.0, < 1.0.0", "~1.2.0") | Yes      |
+| `author`                   | Resource maintainer or author                                     | No       |
+| `description`              | Human-readable description                                        | No       |
+| `category`                 | Resource category for organization                                | No       |
+| `image`                    | Icon or logo URL                                                  | No       |
+| `resource_usage.cpu`       | Expected CPU usage (e.g., "500m")                                 | No       |
+| `resource_usage.memory`    | Expected memory usage (e.g., "1Gi")                               | No       |
 
 **Version Constraints:**
 
@@ -128,6 +129,7 @@ Text values with optional regex validation:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (string): Default value
 - `regex` (string): Validation regex pattern
@@ -150,6 +152,7 @@ Numeric values with optional min/max constraints:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (integer): Default value
 - `min` (integer): Minimum allowed value
@@ -173,6 +176,7 @@ Floating-point values with optional min/max constraints:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (float): Default value
 - `min` (float): Minimum allowed value
@@ -194,6 +198,7 @@ True/false values:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (boolean): Default value
 - `editable` (boolean): Whether users can modify this value
@@ -217,6 +222,7 @@ Single selection from predefined values:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (string): Default value (must be in values list)
 - `values` (array): List of allowed values
@@ -245,6 +251,7 @@ Multiple selections from predefined values:
 ```
 
 **Spec Fields:**
+
 - `required` (boolean): Whether the field is required
 - `default` (array): Default values (must be in values list)
 - `values` (array): List of allowed values
