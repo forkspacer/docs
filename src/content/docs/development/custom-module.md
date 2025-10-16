@@ -5,8 +5,6 @@ sidebar:
   order: 2
 ---
 
-# Custom Module Development
-
 Forkspacer supports custom modules that allow you to extend the operator with custom resource management logic. Custom modules enable you to integrate third-party tools, implement custom deployment strategies, or handle specialized workloads beyond the built-in Helm support.
 
 ## What are Custom Modules?
@@ -32,6 +30,7 @@ Custom modules expose an HTTP server that the operator calls to manage Module li
 #### Required Endpoints
 
 **Health Check:**
+
 ```
 GET /health
 Response: 200 OK
@@ -44,6 +43,7 @@ Response: 200 OK
 ```
 
 **Install:**
+
 ```
 POST /install
 Content-Type: application/json
@@ -52,6 +52,7 @@ Response: 201 Created (on success) or 400 Bad Request (on failure)
 ```
 
 **Uninstall:**
+
 ```
 POST /uninstall
 Content-Type: application/json
@@ -60,6 +61,7 @@ Response: 204 No Content (on success) or 400 Bad Request (on failure)
 ```
 
 **Sleep:**
+
 ```
 POST /sleep
 Content-Type: application/json
@@ -68,6 +70,7 @@ Response: 200 OK (on success) or 400 Bad Request (on failure)
 ```
 
 **Resume:**
+
 ```
 POST /resume
 Content-Type: application/json
@@ -95,6 +98,7 @@ go mod init my-module
 ```
 
 **Example `go.mod`:**
+
 ```go
 module my-module
 
@@ -724,6 +728,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 ## Complete Example
 
 See the complete example custom module in the repository:
+
 - [Example Custom Module](https://github.com/forkspacer/modules/tree/main/custom/example)
 
 ## Next Steps

@@ -2,10 +2,8 @@
 title: Custom
 description: Custom resource definition reference for container-based modules
 sidebar:
-    order: 3
+  order: 3
 ---
-
-# Custom Resources
 
 Custom resources define Docker container-based modules that can be executed within a Module. They provide a flexible way to run custom installation, configuration, and management logic using containerized HTTP services that integrate with the operator.
 
@@ -41,17 +39,17 @@ spec:
 
 ## Metadata Fields
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Unique identifier for the resource | Yes |
-| `version` | string | Semantic version of the resource definition | Yes |
-| `supportedOperatorVersion` | string | Operator version constraint (semver format, e.g., ">= 0.0.0, < 1.0.0") | Yes |
-| `author` | string | Resource author or maintainer | No |
-| `description` | string | Human-readable description of the resource | No |
-| `category` | string | Resource category for organization | No |
-| `image` | string | URL to an icon or logo image | No |
-| `resource_usage.cpu` | string | Expected CPU usage (e.g., "500m", "2") | No |
-| `resource_usage.memory` | string | Expected memory usage (e.g., "512Mi", "2Gi") | No |
+| Field                      | Type   | Description                                                            | Required |
+| -------------------------- | ------ | ---------------------------------------------------------------------- | -------- |
+| `name`                     | string | Unique identifier for the resource                                     | Yes      |
+| `version`                  | string | Semantic version of the resource definition                            | Yes      |
+| `supportedOperatorVersion` | string | Operator version constraint (semver format, e.g., ">= 0.0.0, < 1.0.0") | Yes      |
+| `author`                   | string | Resource author or maintainer                                          | No       |
+| `description`              | string | Human-readable description of the resource                             | No       |
+| `category`                 | string | Resource category for organization                                     | No       |
+| `image`                    | string | URL to an icon or logo image                                           | No       |
+| `resource_usage.cpu`       | string | Expected CPU usage (e.g., "500m", "2")                                 | No       |
+| `resource_usage.memory`    | string | Expected memory usage (e.g., "512Mi", "2Gi")                           | No       |
 
 ## Config Fields
 
@@ -61,23 +59,25 @@ The `config` array defines user-configurable parameters. See [Configuration Sche
 
 The `spec` section defines how the custom module container should be deployed and what permissions it has.
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `spec.image` | string | Docker image reference (e.g., `my-registry/my-module:v1.0.0`) | Yes |
-| `spec.imagePullSecrets` | array of strings | List of Kubernetes secret names for pulling private images | No |
-| `spec.permissions` | array of strings | Cluster access permissions. `workspace` = workspace kubeconfig, `controller` = operator service account | No |
+| Field                   | Type             | Description                                                                                             | Required |
+| ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| `spec.image`            | string           | Docker image reference (e.g., `my-registry/my-module:v1.0.0`)                                           | Yes      |
+| `spec.imagePullSecrets` | array of strings | List of Kubernetes secret names for pulling private images                                              | No       |
+| `spec.permissions`      | array of strings | Cluster access permissions. `workspace` = workspace kubeconfig, `controller` = operator service account | No       |
 
 ### Image
 
 The `image` field specifies the Docker container image that contains your custom module implementation.
 
 **Example:**
+
 ```yaml
 spec:
   image: my-registry/my-module:v1.0.0
 ```
 
 **Note**: The image must be accessible from your Kubernetes cluster. You can use:
+
 - Public registries (Docker Hub, GHCR, etc.)
 - Private registries (requires image pull secrets)
 - Internal registries within your cluster
@@ -87,6 +87,7 @@ spec:
 The `imagePullSecrets` field specifies Kubernetes secrets containing credentials for pulling images from private registries.
 
 **Example:**
+
 ```yaml
 spec:
   image: my-private-registry.com/my-module:v1.0.0
@@ -96,6 +97,7 @@ spec:
 ```
 
 **Creating an image pull secret:**
+
 ```bash
 kubectl create secret docker-registry my-registry-secret \
   --docker-server=my-private-registry.com \
@@ -118,6 +120,7 @@ The `permissions` field specifies what level of cluster access the custom module
 - **`controller`**: Provides the module with access to the main cluster (where the Forkspacer operator is installed) via a service account. The module runs with elevated permissions similar to the operator itself. Use this only for modules that need to manage operator-level resources or interact with multiple workspaces.
 
 **Example with workspace permissions:**
+
 ```yaml
 spec:
   image: my-registry/my-module:v1.0.0
@@ -128,6 +131,7 @@ spec:
 The module will receive the workspace's kubeconfig and can manage resources in that workspace's cluster.
 
 **Example with controller permissions:**
+
 ```yaml
 spec:
   image: my-registry/admin-module:v1.0.0
@@ -148,6 +152,7 @@ Custom modules are containerized HTTP services that implement a REST API for lif
 All custom modules must implement the following HTTP endpoints:
 
 #### Health Check
+
 ```
 GET /health
 Response: 200 OK
@@ -160,6 +165,7 @@ Response: 200 OK
 ```
 
 #### Install
+
 ```
 POST /install
 Content-Type: application/json
@@ -170,6 +176,7 @@ Response: 201 Created (on success) or 400 Bad Request (on failure)
 Called when a Module is created or needs to be installed. This endpoint should deploy and configure all required resources.
 
 #### Uninstall
+
 ```
 POST /uninstall
 Content-Type: application/json
@@ -180,6 +187,7 @@ Response: 204 No Content (on success) or 400 Bad Request (on failure)
 Called when a Module is deleted. This endpoint should remove all resources and clean up.
 
 #### Sleep
+
 ```
 POST /sleep
 Content-Type: application/json
@@ -190,6 +198,7 @@ Response: 200 OK (on success) or 400 Bad Request (on failure)
 Called when a Module is hibernated. This endpoint should scale down or pause resources to save costs.
 
 #### Resume
+
 ```
 POST /resume
 Content-Type: application/json
@@ -750,12 +759,14 @@ Custom modules are distributed as Docker container images. You can host them on:
 ### Public Registries
 
 **Docker Hub:**
+
 ```yaml
 spec:
   image: myusername/my-module:v1.0.0
 ```
 
 **GitHub Container Registry:**
+
 ```yaml
 spec:
   image: ghcr.io/myorg/my-module:v1.0.0
@@ -773,6 +784,7 @@ spec:
 ```
 
 **Create the secret:**
+
 ```bash
 kubectl create secret docker-registry my-registry-secret \
   --docker-server=my-private-registry.com \

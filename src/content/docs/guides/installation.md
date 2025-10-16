@@ -2,20 +2,21 @@
 title: Installation
 description: How to install the Forkspacer operator in your Kubernetes cluster
 sidebar:
-    order: 1
+  order: 1
 ---
 
-# Installing Forkspacer
-
-This guide walks you through installing the Forkspacer operator in your Kubernetes cluster.
+This guide walks you through installing the Forkspacer operator in your Kubernetes cluster using Helm (recommended).
 
 ## Prerequisites
 
 - Kubernetes cluster (v1.20 or later)
 - `kubectl` configured to access your cluster
+- `helm` (v3.0 or later)
 - Cluster admin permissions
 
-## Installation Steps
+## Helm Installation
+
+Forkspacer is installed using Helm charts for flexible and manageable deployments.
 
 ### 1. Install cert-manager
 
@@ -33,31 +34,40 @@ kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-ca
 kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-webhook -n cert-manager
 ```
 
-### 2. Deploy Forkspacer
+### 2. Deploy Forkspacer with Helm
 
-Install the Forkspacer operator using Helm:
+Add the Forkspacer Helm repository:
 
 ```bash
-# Add the Forkspacer Helm repository
 helm repo add forkspacer https://forkspacer.github.io/forkspacer
 helm repo update
+```
 
-# Install Forkspacer
+<!-- Choose your installation method: -->
+
+<!-- **Option A: Operator Only (Minimal)** -->
+
+**Operator Only (Minimal)**
+
+Install just the core operator for managing workspaces and modules:
+
+```bash
 helm install forkspacer forkspacer/forkspacer \
   --namespace forkspacer-system \
   --create-namespace
 ```
 
-For advanced configuration options:
+<!-- **Option B: With Web UI and API Server**
+
+Install with the web UI and API server enabled for a complete management experience:
 
 ```bash
-# Install with custom values
 helm install forkspacer forkspacer/forkspacer \
-  --namespace forkspacer-system \
-  --create-namespace \
   --set operator-ui.enabled=true \
-  --set ingress.enabled=true
-```
+  --set api-server.enabled=true \
+  --namespace forkspacer-system \
+  --create-namespace
+``` -->
 
 ### 3. Verify Installation
 

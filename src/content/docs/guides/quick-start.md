@@ -2,10 +2,8 @@
 title: Quick Start
 description: Get started with Forkspacer in 5 minutes
 sidebar:
-    order: 2
+  order: 2
 ---
-
-# Quick Start Guide
 
 This guide will help you create your first workspace and deploy a module in just a few minutes.
 
@@ -86,6 +84,26 @@ NAME    WORKSPACE   PHASE   AGE
 redis   default     ready   45s
 ```
 
+## Understanding What You Created
+
+Before we continue, let's understand what just happened:
+
+You now have three components working together:
+
+1. **Workspace** (`default`): An isolated Kubernetes environment managed by Forkspacer
+2. **Module** (`redis`): A Kubernetes CRD that declares "install Redis in the default workspace"
+3. **Module Definition**: A YAML template hosted on GitHub that describes how to install Redis using a Helm chart
+
+When you created the Module, the Forkspacer operator:
+
+1. Detected the new Module CRD
+2. Fetched the module definition from the GitHub URL
+3. Parsed the Helm configuration in that definition
+4. Installed Redis using the Helm chart specified in the definition
+5. Applied your configuration values (`replicaCount`, `version`)
+
+> **What's in that URL?** The GitHub URL points to a [module definition](/introduction/concepts/#module-definition) - a reusable template that describes how to install Redis. Module definitions can be shared across teams and stored in Git repositories. [View the Redis module definition →](https://raw.githubusercontent.com/forkspacer/modules/refs/heads/main/redis/1.0.0/module.yaml)
+
 ## Step 3: Verify the Deployment
 
 Check the pods created by the module:
@@ -155,16 +173,18 @@ kubectl delete workspace default
 ### Common Use Cases
 
 **Development Environments:**
+
 ```yaml
 # Auto-hibernate outside business hours to save costs
 spec:
   autoHibernation:
     enabled: true
-    schedule: "0 18 * * 1-5"      # 6 PM weekdays
-    wakeSchedule: "0 8 * * 1-5"   # 8 AM weekdays
+    schedule: "0 18 * * 1-5" # 6 PM weekdays
+    wakeSchedule: "0 8 * * 1-5" # 8 AM weekdays
 ```
 
 **Testing Environments:**
+
 ```yaml
 # Fork from production workspace
 spec:
@@ -175,6 +195,7 @@ spec:
 ```
 
 **Staging Environments:**
+
 ```yaml
 # Deploy from HTTP-hosted resource definitions
 spec:

@@ -2,10 +2,8 @@
 title: Helm
 description: Helm resource definition reference for deploying Helm charts
 sidebar:
-    order: 2
+  order: 2
 ---
-
-# Helm Resources
 
 Helm resources define how Helm charts should be deployed within a Module. They provide a declarative way to specify Helm repositories, chart versions, values, and configuration options.
 
@@ -43,17 +41,17 @@ spec:
 
 ## Metadata Fields
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `name` | string | Unique identifier for the resource | Yes |
-| `version` | string | Semantic version of the resource definition | Yes |
-| `supportedOperatorVersion` | string | Operator version constraint (semver format, e.g., ">= 0.0.0, < 1.0.0") | Yes |
-| `author` | string | Resource author or maintainer | No |
-| `description` | string | Human-readable description of the resource | No |
-| `category` | string | Resource category for organization | No |
-| `image` | string | URL to an icon or logo image | No |
-| `resource_usage.cpu` | string | Expected CPU usage (e.g., "500m", "2") | No |
-| `resource_usage.memory` | string | Expected memory usage (e.g., "512Mi", "2Gi") | No |
+| Field                      | Type   | Description                                                            | Required |
+| -------------------------- | ------ | ---------------------------------------------------------------------- | -------- |
+| `name`                     | string | Unique identifier for the resource                                     | Yes      |
+| `version`                  | string | Semantic version of the resource definition                            | Yes      |
+| `supportedOperatorVersion` | string | Operator version constraint (semver format, e.g., ">= 0.0.0, < 1.0.0") | Yes      |
+| `author`                   | string | Resource author or maintainer                                          | No       |
+| `description`              | string | Human-readable description of the resource                             | No       |
+| `category`                 | string | Resource category for organization                                     | No       |
+| `image`                    | string | URL to an icon or logo image                                           | No       |
+| `resource_usage.cpu`       | string | Expected CPU usage (e.g., "500m", "2")                                 | No       |
+| `resource_usage.memory`    | string | Expected memory usage (e.g., "512Mi", "2Gi")                           | No       |
 
 ## Config Fields
 
@@ -61,16 +59,16 @@ The `config` array defines user-configurable parameters. See [Configuration Sche
 
 ## Spec Fields
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `namespace` | string | Target Kubernetes namespace for the Helm release | Yes |
-| `repo` | string | Helm chart repository URL | Yes |
-| `chartName` | string | Name of the Helm chart in the repository | Yes |
-| `version` | string | Chart version to install | Yes |
-| `values` | array | Array of value sources (raw, file, configMap) | No |
-| `outputs` | array | Output values to expose after installation | No |
-| `cleanup` | object | Cleanup behavior when module is deleted | No |
-| `migration` | object | Data migration configuration for workspace forking | No |
+| Field       | Type   | Description                                        | Required |
+| ----------- | ------ | -------------------------------------------------- | -------- |
+| `namespace` | string | Target Kubernetes namespace for the Helm release   | Yes      |
+| `repo`      | string | Helm chart repository URL                          | Yes      |
+| `chartName` | string | Name of the Helm chart in the repository           | Yes      |
+| `version`   | string | Chart version to install                           | Yes      |
+| `values`    | array  | Array of value sources (raw, file, configMap)      | No       |
+| `outputs`   | array  | Output values to expose after installation         | No       |
+| `cleanup`   | object | Cleanup behavior when module is deleted            | No       |
+| `migration` | object | Data migration configuration for workspace forking | No       |
 
 ### Values Sources
 
@@ -157,8 +155,8 @@ Configure cleanup behavior when the module is deleted:
 
 ```yaml
 cleanup:
-  removeNamespace: false  # Whether to remove the namespace
-  removePVCs: true        # Whether to remove PersistentVolumeClaims
+  removeNamespace: false # Whether to remove the namespace
+  removePVCs: true # Whether to remove PersistentVolumeClaims
 ```
 
 ### Migration
@@ -168,31 +166,31 @@ Configure data migration behavior for workspace forking. When a workspace is for
 ```yaml
 migration:
   pvc:
-    enabled: true  # Enable PVC migration for this module
-    names:         # List of PVC names to migrate (supports templating)
+    enabled: true # Enable PVC migration for this module
+    names: # List of PVC names to migrate (supports templating)
       - "data-{{ .releaseName }}-0"
       - "logs-{{ .releaseName }}-0"
   secret:
-    enabled: true  # Enable Secret migration for this module
-    names:         # List of Secret names to migrate (supports templating)
+    enabled: true # Enable Secret migration for this module
+    names: # List of Secret names to migrate (supports templating)
       - "{{ .releaseName }}"
       - "{{ .releaseName }}-tls"
   configMap:
-    enabled: true  # Enable ConfigMap migration for this module
-    names:         # List of ConfigMap names to migrate (supports templating)
+    enabled: true # Enable ConfigMap migration for this module
+    names: # List of ConfigMap names to migrate (supports templating)
       - "{{ .releaseName }}-config"
 ```
 
 **Fields:**
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `pvc.enabled` | boolean | Enable PVC migration for this Helm module | No (default: `false`) |
-| `pvc.names` | array of strings | List of PVC names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `pvc.enabled` is true) |
-| `secret.enabled` | boolean | Enable Secret migration for this Helm module | No (default: `false`) |
-| `secret.names` | array of strings | List of Secret names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `secret.enabled` is true) |
-| `configMap.enabled` | boolean | Enable ConfigMap migration for this Helm module | No (default: `false`) |
-| `configMap.names` | array of strings | List of ConfigMap names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `configMap.enabled` is true) |
+| Field               | Type             | Description                                                                                               | Required                               |
+| ------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `pvc.enabled`       | boolean          | Enable PVC migration for this Helm module                                                                 | No (default: `false`)                  |
+| `pvc.names`         | array of strings | List of PVC names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables.       | Yes (when `pvc.enabled` is true)       |
+| `secret.enabled`    | boolean          | Enable Secret migration for this Helm module                                                              | No (default: `false`)                  |
+| `secret.names`      | array of strings | List of Secret names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables.    | Yes (when `secret.enabled` is true)    |
+| `configMap.enabled` | boolean          | Enable ConfigMap migration for this Helm module                                                           | No (default: `false`)                  |
+| `configMap.names`   | array of strings | List of ConfigMap names to migrate. Supports Go templating with `.releaseName` and `.config.*` variables. | Yes (when `configMap.enabled` is true) |
 
 **How Migration Works:**
 
@@ -239,7 +237,7 @@ spec:
     secret:
       enabled: true
       names:
-        - "{{ .releaseName }}"  # Migrates the Redis password secret
+        - "{{ .releaseName }}" # Migrates the Redis password secret
 ```
 
 **Example with Redis (Master + Replicas):**
@@ -282,11 +280,11 @@ spec:
     secret:
       enabled: true
       names:
-        - "{{ .releaseName }}"  # Migrates PostgreSQL password secret
+        - "{{ .releaseName }}" # Migrates PostgreSQL password secret
     configMap:
       enabled: true
       names:
-        - "{{ .releaseName }}-configuration"  # Migrates PostgreSQL configuration
+        - "{{ .releaseName }}-configuration" # Migrates PostgreSQL configuration
 ```
 
 ## Templating
@@ -507,7 +505,7 @@ spec:
     secret:
       enabled: true
       names:
-        - "{{ .releaseName }}"  # Migrates Redis password secret
+        - "{{ .releaseName }}" # Migrates Redis password secret
 ```
 
 ## Usage in Modules
@@ -581,6 +579,7 @@ When using the `file` option for Helm values, the files must be hosted on access
 ### Hosting Options
 
 **Static File Server:**
+
 ```bash
 # Serve values files via HTTP
 cd helm-values
@@ -590,12 +589,14 @@ python3 -m http.server 8080
 ```
 
 **Object Storage:**
+
 - Amazon S3
 - Google Cloud Storage
 - Azure Blob Storage
 - MinIO
 
 **Web Server:**
+
 - Nginx
 - Apache
 - GitHub Releases/Raw
@@ -603,18 +604,21 @@ python3 -m http.server 8080
 ### Example Distribution
 
 **Hosting on GitHub Raw:**
+
 ```yaml
 values:
   - file: https://raw.githubusercontent.com/org/repo/main/helm-values/production.yaml
 ```
 
 **Hosting on Object Storage:**
+
 ```yaml
 values:
   - file: https://storage.googleapis.com/my-bucket/helm-values/production.yaml
 ```
 
 **Hosting on CDN:**
+
 ```yaml
 values:
   - file: https://cdn.example.com/helm-values/v1.0.0/production.yaml
