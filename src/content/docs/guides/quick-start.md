@@ -81,6 +81,8 @@ spec:
               global:
                 security:
                   allowInsecureImages: true
+              replica:        
+                replicaCount: 1    
 ```
 
 Deploy the module:
