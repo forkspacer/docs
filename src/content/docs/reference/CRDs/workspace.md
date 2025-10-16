@@ -29,20 +29,6 @@ spec:
   hibernated: false
   connection:
     type: local
-  autoHibernation:
-    enabled: true
-    schedule: "0 18 * * 1-5"  # Hibernate at 6 PM on weekdays
-    wakeSchedule: "0 8 * * 1-5"  # Wake at 8 AM on weekdays
-status:
-  phase: ready
-  ready: true
-  lastActivity: "2025-10-01T10:30:00Z"
-  conditions:
-    - type: Available
-      status: "True"
-      lastTransitionTime: "2025-10-01T10:30:00Z"
-      reason: WorkspaceReady
-      message: Workspace is fully operational
 ```
 
 ## Spec Fields

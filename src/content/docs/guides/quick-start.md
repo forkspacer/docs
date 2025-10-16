@@ -28,10 +28,6 @@ spec:
   type: kubernetes
   connection:
     type: in-cluster
-  autoHibernation:
-    enabled: false
-    schedule: "0 42 18 * * *"       # 6-field cron with seconds
-    wakeSchedule: "0 44 18 * * *"
 ```
 
 Apply the workspace:
@@ -64,58 +60,27 @@ metadata:
   name: redis
   namespace: default
 spec:
+  workspace:
+    name: default
+    namespace: default
   source:
     raw:
       kind: Helm
       metadata:
         name: redis
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-
-      config:
-        - type: option
-          name: "Redis Version"
-          alias: "version"
-          spec:
-            editable: true
-            required: false
-            default: "21.2.9"
-            values:
-              - "21.2.9"
-              - "21.2.7"
-              - "21.2.6"
-
-        - type: integer
-          name: "Replica Count"
-          alias: "replicaCount"
-          spec:
-            editable: true
-            required: false
-            default: 1
-            min: 0
-            max: 5
-
       spec:
         namespace: default
         repo: https://charts.bitnami.com/bitnami
         chartName: redis
-        version: "{{.config.version}}"
-
+        version: "18.0.0"
         values:
           - raw:
-              replica:
-                replicaCount: "{{.config.replicaCount}}"
-
-        cleanup:
-          removeNamespace: false
-          removePVCs: true
-
-  workspace:
-    name: default
-    namespace: default
-
-  config:
-    version: 21.2.7
-    replicaCount: 1
+              image:
+                repository: bitnamilegacy/redis
+              global:
+                security:
+                  allowInsecureImages: true
 ```
 
 Deploy the module:

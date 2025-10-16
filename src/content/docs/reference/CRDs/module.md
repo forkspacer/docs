@@ -36,15 +36,6 @@ spec:
     replicas: 3
     environment: production
   hibernated: false
-status:
-  phase: ready
-  lastActivity: "2025-10-01T10:30:00Z"
-  conditions:
-    - type: Available
-      status: "True"
-      lastTransitionTime: "2025-10-01T10:30:00Z"
-      reason: ModuleReady
-      message: Module is successfully installed and running
 ```
 
 ### Custom Module Example
@@ -68,8 +59,6 @@ spec:
         supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
       spec:
         image: my-registry/custom-app:v1.0.0
-status:
-  phase: ready
 ```
 
 ## Spec Fields
