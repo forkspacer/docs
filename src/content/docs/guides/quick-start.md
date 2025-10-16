@@ -64,25 +64,7 @@ spec:
     name: default
     namespace: default
   source:
-    raw:
-      kind: Helm
-      metadata:
-        name: redis
-        supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-      spec:
-        namespace: default
-        repo: https://charts.bitnami.com/bitnami
-        chartName: redis
-        version: "18.0.0"
-        values:
-          - raw:
-              image:
-                repository: bitnamilegacy/redis
-              global:
-                security:
-                  allowInsecureImages: true
-              replica:        
-                replicaCount: 1    
+    httpURL: https://raw.githubusercontent.com/forkspacer/modules/refs/heads/main/redis/1.0.0/module.yaml
 ```
 
 Deploy the module:
