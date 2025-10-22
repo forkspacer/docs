@@ -57,12 +57,60 @@ kind: Module
 metadata:
   name: redis
   namespace: default
+
+config:
+  - name: "Redis Version"
+    alias: "version"
+    option:
+      editable: true
+      required: false
+      default: "21.2.9"
+      values:
+        - "21.2.9"
+        - "21.2.7"
+        - "21.2.6"
+
+  - name: "Replica Count"
+    alias: "replicaCount"
+    integer:
+      editable: true
+      required: false
+      default: 1
+      min: 0
+      max: 5
+
 spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "{{.config.version}}"
+
+    namespace: default
+
+    values:
+      - raw:
+          replica:
+            replicaCount: "{{.config.replicaCount}}"
+          image:
+            repository: bitnamilegacy/redis
+          global:
+            security:
+              allowInsecureImages: true
+
+    cleanup:
+      removePVCs: true
+
   workspace:
     name: default
     namespace: default
-  source:
-    httpURL: https://raw.githubusercontent.com/forkspacer/modules/refs/heads/main/redis/1.0.0/module.yaml
+
+  hibernated: false
+
+  config:
+    version: "21.2.7"
+    replicaCount: 1
 ```
 
 Deploy the module:
@@ -197,13 +245,22 @@ spec:
 **Staging Environments:**
 
 ```yaml
-# Deploy from HTTP-hosted resource definitions
+# Deploy a PostgreSQL Helm chart
 spec:
-  source:
-    httpURL: https://example.com/resources/postgresql.yaml
-  config:
-    storageSize: "50Gi"
-    replicas: 2
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: postgresql
+        version: "14.0.0"
+    namespace: default
+    values:
+      - raw:
+          persistence:
+            size: "50Gi"
+          replication:
+            enabled: true
+            slaveReplicas: 2
 ```
 
 ## Troubleshooting

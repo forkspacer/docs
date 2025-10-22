@@ -61,26 +61,54 @@ Save costs by automatically scaling down idle environments:
 - **Manual**: Instant hibernation on-demand
 - **Per-module**: Hibernate expensive services independently
 
-### Reusable Module Definitions
+### Declarative Modules
 
-Install applications using pre-defined, configurable templates:
+Install applications with typed configuration and validation:
 
 ```yaml
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: postgres
+  namespace: default
+
+config:
+  - name: "Storage Size"
+    alias: "storageSize"
+    string:
+      default: "10Gi"
+      regex: "^[0-9]+(Mi|Gi|Ti)$"
+
+  - name: "Replica Count"
+    alias: "replicas"
+    integer:
+      default: 1
+      min: 1
+      max: 5
+
 spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: postgresql
+        version: "14.0.0"
+    namespace: default
+    values:
+      - raw:
+          persistence:
+            size: "{{.config.storageSize}}"
+          replication:
+            enabled: true
+            slaveReplicas: "{{.config.replicas}}"
   workspace:
     name: feature-auth
-  source:
-    httpURL: https://modules.forkspacer.com/postgresql.yaml
   config:
     storageSize: "20Gi"
     replicas: 2
 ```
 
-The module definition handles all Helm chart complexity, exposing only relevant configuration.
+Modules directly contain their configuration schema and Helm chart specifications.
 
 ## Key Benefits
 
@@ -106,10 +134,11 @@ The module definition handles all Helm chart complexity, exposing only relevant 
 
 ### Flexibility
 
-- **Helm chart support** for standard applications
-- **Custom modules** for complex installation logic
+- **Helm chart support** for standard applications with inline configuration
+- **Custom modules** for complex installation logic via containerized services
 - **Multi-cluster** support for testing in different regions
-- **Adopt existing resources** to manage already-deployed applications
+- **Adopt existing Helm releases** to manage already-deployed applications
+- **Typed configuration** with validation (string, integer, boolean, option, etc.)
 
 ## Use Cases
 
@@ -225,10 +254,11 @@ spec:
 
 **Forkspacer**:
 
-- Declarative workspace definitions
-- Reusable module templates
+- Declarative workspace and module definitions
+- Typed configuration with validation
 - Built-in hibernation and forking
 - Operator-managed reconciliation
+- Configuration templating with Go templates
 
 ### vs. Terraform/Pulumi
 
@@ -245,10 +275,28 @@ spec:
 
 Forkspacer is a Kubernetes operator built with:
 
-- **Custom Resource Definitions (CRDs)**: Workspace and Module
+- **Custom Resource Definitions (CRDs)**: Workspace and Module resources
 - **Controller Pattern**: Reconciles desired state continuously
-- **Helm Integration**: Deploys charts with templated values
-- **Extensibility**: Custom modules via containerized HTTP services
+- **Helm Integration**: Deploys charts with templated values directly from Module specs
+- **Custom Module Support**: Extensibility via containerized HTTP services
+- **Configuration Validation**: Typed schema validation before installation
+
+Modules contain their configuration schema and installation specifications directly:
+
+```
+┌─────────────────────────────────────┐
+│         Workspace (CRD)             │
+│  An isolated Kubernetes environment │
+└─────────────────────────────────────┘
+              ↓ contains
+┌─────────────────────────────────────┐
+│          Module (CRD)               │
+│  • Configuration schema             │
+│  • Helm chart spec OR               │
+│  • Custom module spec               │
+│  • Validated config values          │
+└─────────────────────────────────────┘
+```
 
 It runs entirely within Kubernetes and requires no external dependencies beyond cert-manager.
 

@@ -36,20 +36,23 @@ A `Workspace` represents a managed Kubernetes environment that can be created, h
 
 ### Module
 
-A `Module` represents an installable application or component that is deployed into a `Workspace`. Modules support multiple source types and can be individually hibernated.
+A `Module` represents an installable application or component that is deployed into a `Workspace`. Modules can deploy Helm charts or run custom containerized modules, with built-in configuration validation.
 
 **Key Features:**
-- Multiple source types: raw manifests, HTTP URLs
-- Custom configuration via arbitrary key-value pairs
+- Helm chart deployment with multiple sources (repository, git, configMap)
+- Custom containerized modules with HTTP API interface
+- Declarative configuration schema with typed validation
+- Configuration templating with Go templates
 - Independent hibernation control
+- Adoption of existing Helm releases
 - Installation lifecycle tracking
-- Phase-based status reporting
 
 **Use Cases:**
-- Installing applications from external manifest repositories
-- Deploying microservices into workspaces
+- Deploying Helm charts from repositories or git
+- Running custom installation logic via containerized modules
+- Installing applications with validated configuration
+- Adopting and tracking existing Helm releases
 - Managing add-ons and platform components
-- Coordinating multi-component deployments
 
 [Learn more about Module →](/reference/crds/module/)
 
@@ -74,8 +77,8 @@ A `Module` represents an installable application or component that is deployed i
 │                   Module                     │
 │  (Installable Application/Component)         │
 │                                              │
-│  • Sources: raw, httpURL                     │
-│  • Custom configuration                      │
+│  • Helm charts or custom modules            │
+│  • Typed configuration with validation       │
 │  • Lifecycle: ready, installing, hibernated  │
 └──────────────────────────────────────────────┘
 ```
@@ -109,33 +112,56 @@ spec:
     wakeSchedule: "0 8 * * 1-5"  # Wake weekday mornings
 
 ---
-# 2. Deploy an API service module
+# 2. Deploy a Redis module with Helm
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
-  name: api-service
+  name: redis
   namespace: default
+
+config:
+  - name: "Redis Version"
+    alias: "version"
+    option:
+      default: "21.2.9"
+      values:
+        - "21.2.9"
+        - "21.2.7"
+
 spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "{{.config.version}}"
+    namespace: default
+    values:
+      - raw:
+          image:
+            repository: bitnamilegacy/redis
+          global:
+            security:
+              allowInsecureImages: true
   workspace:
     name: dev-environment
-  source:
-    httpURL: https://example.com/manifests/api.yaml
   config:
-    replicas: 2
-    environment: development
+    version: "21.2.9"
 
 ---
-# 3. Deploy a monitoring module
+# 3. Deploy a custom monitoring module
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: monitoring
   namespace: default
 spec:
+  custom:
+    image: my-registry/monitoring:v1.0.0
+    permissions:
+      - workspace
   workspace:
     name: dev-environment
-  source:
-    httpURL: https://example.com/manifests/prometheus.yaml
 ```
 
 ## Hibernation and Cost Optimization

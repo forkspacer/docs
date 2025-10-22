@@ -9,7 +9,7 @@ This page explains the fundamental concepts you need to understand how Forkspace
 
 ## The Forkspacer Model
 
-Forkspacer uses a three-layer architecture to manage environments:
+Forkspacer uses a two-layer architecture to manage environments:
 
 ```
 ┌─────────────────────────────────────┐
@@ -22,17 +22,11 @@ Forkspacer uses a three-layer architecture to manage environments:
               ↓ contains
 ┌─────────────────────────────────────┐
 │          Module (CRD)               │
-│  Declares WHAT to install           │
+│  Declares what to install & how     │
 │  • References a workspace           │
-│  • References a module definition   │
-│  • Provides configuration values    │
-└─────────────────────────────────────┘
-              ↓ references
-┌─────────────────────────────────────┐
-│      Module Definition              │
-│  A reusable template describing     │
-│  HOW to install an application      │
-│  • Helm: Deploy Helm charts         │
+│  • Contains Helm or Custom config   │
+│  • Validates configuration          │
+│  • Helm: Deploy charts directly     │
 │  • Custom: Run install containers   │
 └─────────────────────────────────────┘
 ```
@@ -40,8 +34,7 @@ Forkspacer uses a three-layer architecture to manage environments:
 **Think of it like this:**
 
 - **Workspace** = A separate development environment (like a VM or namespace, but smarter)
-- **Module** = A declaration "Install Redis in my-workspace with these settings"
-- **Module Definition** = The actual instructions for installing Redis
+- **Module** = A complete declaration of what to install and how to configure it
 
 ## Workspace
 
@@ -93,7 +86,7 @@ Workspaces can target different Kubernetes clusters:
 
 ## Module
 
-A **Module** is a Kubernetes CRD that declares **what** application to install into a workspace and **how** to configure it.
+A **Module** is a Kubernetes CRD that declares **what** application to install into a workspace and **how** to configure it. Modules directly contain either Helm chart configuration or custom module configuration.
 
 ### Anatomy of a Module
 
@@ -102,162 +95,150 @@ apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: redis # Name of this module instance
-spec:
-  workspace: # Where to install
-    name: dev-environment
-  source: # Where to get installation instructions
-    httpURL: https://example.com/modules/redis.yaml
-  config: # Configuration values
-    replicaCount: 2
-    version: "21.2.9"
-```
 
-### What Modules Do
-
-1. **Reference a workspace**: Specifies which environment to target
-2. **Reference a module definition**: Points to installation instructions (via URL, ConfigMap, or raw YAML)
-3. **Provide configuration**: Pass values that customize the installation
-4. **Track status**: Report installation state (installing, ready, failed, etc.)
-
-### Module Sources
-
-Modules can load their definitions from multiple sources:
-
-**HTTP URL** (most common):
-
-```yaml
-source:
-  httpURL: https://raw.githubusercontent.com/forkspacer/modules/main/redis/module.yaml
-```
-
-**Raw embedded**:
-
-```yaml
-source:
-  raw:
-    kind: Helm
-    metadata:
-      name: redis
-    spec:
-      repo: https://charts.bitnami.com/bitnami
-      chartName: redis
-```
-
-**ConfigMap**:
-
-```yaml
-source:
-  configMap:
-    name: redis-module-definition
-```
-
-**Existing Helm release** (adopt already-installed apps):
-
-```yaml
-source:
-  existingHelmRelease:
-    name: existing-redis
-    namespace: default
-```
-
-## Module Definition
-
-A **Module Definition** is a reusable template that describes **how** to install an application. Think of it as a recipe that Modules follow.
-
-Module Definitions are **not** Kubernetes resources. They are YAML files that define installation logic.
-
-### Two Types
-
-#### Helm Module Definitions
-
-Deploy Helm charts with configurable values:
-
-```yaml
-kind: Helm
-metadata:
-  name: redis
-  version: "1.0.0"
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-
-config:
-  - type: integer
-    name: "Replica Count"
-    alias: replicaCount
-    spec:
+config: # Configuration schema with validation
+  - name: "Replica Count"
+    alias: "replicaCount"
+    integer:
       default: 1
       min: 0
       max: 5
 
 spec:
-  namespace: default
-  repo: https://charts.bitnami.com/bitnami
-  chartName: redis
-  version: "21.2.9"
-  values:
-    - raw:
-        replica:
-          replicaCount: "{{.config.replicaCount}}"
+  helm: # Helm chart configuration
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "21.2.9"
+    namespace: default
+    values:
+      - raw:
+          replica:
+            replicaCount: "{{.config.replicaCount}}"
+
+  workspace: # Where to install
+    name: dev-environment
+
+  config: # Configuration values
+    replicaCount: 2
 ```
 
-#### Custom Module Definitions
+### What Modules Do
 
-Run containerized installation logic (any language):
+1. **Define configuration schema**: Specify typed configuration options with validation
+2. **Reference a workspace**: Specifies which environment to target
+3. **Contain installation logic**: Either Helm chart config or custom module config
+4. **Validate configuration**: Ensure config values meet requirements before installation
+5. **Track status**: Report installation state (installing, ready, failed, etc.)
+
+### Module Types
+
+Modules can be one of two types:
+
+**Helm Modules** - Deploy Helm charts:
 
 ```yaml
-kind: Custom
-metadata:
-  name: complex-installer
-  version: "1.0.0"
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-
 spec:
-  image: "my-registry/installer:v1.0.0"
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "21.2.9"
+    namespace: default
 ```
 
-The container receives HTTP requests to install, uninstall, hibernate, and resume applications.
+**Custom Modules** - Run containerized installation logic:
+
+```yaml
+spec:
+  custom:
+    image: my-registry/installer:v1.0.0
+    permissions:
+      - workspace
+```
+
+**Adopting Existing Helm Releases**:
+
+```yaml
+spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+    existingRelease:
+      name: existing-redis
+      namespace: default
+```
+
+## Configuration
+
+Modules have a powerful configuration system with typed validation. Configuration is defined directly in the Module CRD.
 
 ### Configuration Schema
 
-Module Definitions declare what configuration options they accept:
+The top-level `config` array defines what configuration options are available:
 
 ```yaml
 config:
-  - type: option # Dropdown selection
-    name: "Environment"
-    alias: environment
-    spec:
+  - name: "Environment" # Display name
+    alias: "environment" # Key used in spec.config
+    option: # Single selection dropdown
       values: [dev, staging, prod]
       default: "dev"
+      required: true
 
-  - type: integer # Number with validation
-    name: "Replicas"
-    alias: replicas
-    spec:
+  - name: "Replicas"
+    alias: "replicas"
+    integer: # Number with validation
       min: 1
       max: 10
       default: 3
 
-  - type: string # Text with regex validation
-    name: "Domain"
-    alias: domain
-    spec:
+  - name: "Domain"
+    alias: "domain"
+    string: # Text with regex validation
       regex: "^[a-z0-9.-]+$"
+      required: true
 ```
 
-Users provide values when creating Modules:
+### Configuration Types
+
+- **string**: Text with optional regex validation
+- **integer**: Numbers with min/max constraints
+- **float**: Decimal numbers with min/max constraints
+- **boolean**: True/false values
+- **option**: Single selection from a list of values
+- **multipleOptions**: Multiple selections from a list
+
+### Using Configuration
+
+Users provide values in `spec.config`:
 
 ```yaml
-# Module references the definition and provides config
 spec:
-  source:
-    httpURL: https://example.com/modules/myapp.yaml
   config:
     environment: staging
     replicas: 5
     domain: "staging.example.com"
 ```
 
-The operator validates config against the schema before installation.
+The operator validates these values against the schema before installation.
+
+### Templating
+
+Configuration values can be used in Helm values via Go templates:
+
+```yaml
+spec:
+  helm:
+    values:
+      - raw:
+          replicaCount: "{{.config.replicas}}"
+          domain: "{{.config.domain}}"
+```
 
 ## Hibernation
 
@@ -394,11 +375,37 @@ kind: Module
 metadata:
   name: redis
   namespace: default
+
+config:
+  - name: "Replica Count"
+    alias: "replicaCount"
+    integer:
+      default: 1
+      min: 0
+      max: 5
+
+  - name: "Redis Version"
+    alias: "version"
+    option:
+      default: "21.2.9"
+      values: ["21.2.9", "21.2.7"]
+
 spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "{{.config.version}}"
+    namespace: default
+    values:
+      - raw:
+          replica:
+            replicaCount: "{{.config.replicaCount}}"
+
   workspace:
     name: dev-environment
-  source:
-    httpURL: https://raw.githubusercontent.com/forkspacer/modules/main/redis/1.0.0/module.yaml
+
   config:
     replicaCount: 2
     version: "21.2.9"
@@ -410,23 +417,41 @@ kind: Module
 metadata:
   name: postgres
   namespace: default
+
+config:
+  - name: "Storage Size"
+    alias: "storageSize"
+    string:
+      default: "10Gi"
+      regex: "^[0-9]+(Mi|Gi|Ti)$"
+
 spec:
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: postgresql
+        version: "14.0.0"
+    namespace: default
+    values:
+      - raw:
+          persistence:
+            size: "{{.config.storageSize}}"
+
   workspace:
     name: dev-environment
-  source:
-    httpURL: https://raw.githubusercontent.com/forkspacer/modules/main/postgresql/1.0.0/module.yaml
+
   config:
     storageSize: "10Gi"
-    enableBackups: false
 ```
 
 **What happens**:
 
 1. Forkspacer creates the `dev-environment` workspace
-2. Fetches the Redis module definition from GitHub
-3. Installs Redis using the Helm chart specified in the definition
-4. Fetches the PostgreSQL module definition
-5. Installs PostgreSQL
+2. Validates Redis configuration against the schema
+3. Installs Redis Helm chart with configured values
+4. Validates PostgreSQL configuration against the schema
+5. Installs PostgreSQL Helm chart
 6. At 6 PM on weekdays, automatically hibernates both Redis and PostgreSQL
 7. At 8 AM on weekdays, automatically wakes them back up
 

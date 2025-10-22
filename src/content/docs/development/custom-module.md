@@ -474,55 +474,9 @@ docker push my-registry/my-module:v1.0.0
 
 ## Using Your Custom Module
 
-### Create Resource Definition
-
-Create a Custom resource definition YAML file:
-
-```yaml
-kind: Custom
-metadata:
-  name: my-module
-  version: 1.0.0
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-  description: "My custom application module"
-  author: "Your Name"
-  category: "Application"
-
-config:
-  - type: string
-    name: namespace
-    alias: namespace
-    spec:
-      required: true
-      default: "default"
-      editable: true
-
-  - type: string
-    name: applicationName
-    alias: appName
-    spec:
-      required: true
-      editable: true
-
-  - type: integer
-    name: replicas
-    alias: replicas
-    spec:
-      required: true
-      default: 1
-      min: 1
-      max: 10
-      editable: true
-
-spec:
-  image: my-registry/my-module:v1.0.0
-  permissions:
-    - workspace
-```
-
 ### Deploy the Module
 
-Create a Module CRD that references your custom module:
+Create a Module CRD with your custom module configuration:
 
 ```yaml
 apiVersion: batch.forkspacer.com/v1
@@ -530,28 +484,72 @@ kind: Module
 metadata:
   name: my-app
   namespace: default
+
+config:
+  - name: "Namespace"
+    alias: "namespace"
+    string:
+      required: true
+      default: "default"
+      editable: true
+
+  - name: "Application Name"
+    alias: "appName"
+    string:
+      required: true
+      editable: true
+
+  - name: "Replicas"
+    alias: "replicas"
+    integer:
+      required: true
+      default: 1
+      min: 1
+      max: 10
+      editable: true
+
 spec:
+  custom:
+    image: my-registry/my-module:v1.0.0
+    permissions:
+      - workspace
+
   workspace:
     name: dev-workspace
     namespace: default
-  source:
-    raw:
-      kind: Custom
-      metadata:
-        name: my-module
-        version: 1.0.0
-        supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-      spec:
-        image: my-registry/my-module:v1.0.0
-        permissions:
-          - workspace
+
   config:
     namespace: my-namespace
     appName: my-application
     replicas: 3
 ```
 
-## Working with Metadata
+**Key points:**
+
+- The `config` array at the top level defines the configuration schema with validation
+- The `spec.custom` section specifies your custom module's Docker image and permissions
+- The `spec.config` section provides the actual configuration values
+- Configuration is validated against the schema and passed to your HTTP endpoints
+
+## Configuration and Metadata
+
+### Configuration Values
+
+The validated configuration values from `spec.config` are passed to your custom module endpoints as JSON in the request body. The configuration is validated against the schema defined in the `config` array before being sent to your module.
+
+**Example request to `/install`:**
+
+```json
+{
+  "namespace": "my-namespace",
+  "appName": "my-application",
+  "replicas": 3
+}
+```
+
+Your custom module receives these values and can use them to configure the installation.
+
+### Working with Metadata
 
 The metadata parameter in each endpoint is a JSON object that persists across lifecycle operations. Use it to store state information.
 
@@ -734,8 +732,7 @@ See the complete example custom module in the repository:
 ## Next Steps
 
 - [Development Overview](/development/overview/) - Learn about operator development
-- [API Reference](/reference/crds/module/) - Understand Module CRD specification
-- [Custom Resources](/reference/resources/custom/) - Custom resource definition reference
+- [Module CRD Reference](/reference/crds/module/) - Understand Module CRD specification with custom module support
 
 ## Resources
 

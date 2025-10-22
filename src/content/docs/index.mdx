@@ -42,24 +42,42 @@ spec:
 > **Auto-hibernation?** Workspaces can automatically sleep during off-hours (like nights and weekends) to reduce cloud costs, then wake up when needed. [Learn more →](/introduction/concepts/#workspace)
 	</Card>
 	<Card title="Deploy a Module" icon="add-document">
-		A Module installs an application into a workspace using a reusable module definition.
+		Manage your environments via Helm charts or custom containerized modules.
 ```yaml
 apiVersion: batch.forkspacer.com/v1
 kind: Module
 metadata:
   name: redis
   namespace: default
+
+config:
+  - name: "Redis Version"
+    alias: "version"
+    option:
+      default: "21.2.7"
+      values: ["21.2.9", "21.2.7"]
+
 spec:
-  source:
-    httpURL: https://shorturl.at/2zh6Z
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "{{.config.version}}"
+    namespace: default
+    values:
+      - raw:
+          image:
+            repository: bitnamilegacy/redis
+          global:
+            security:
+              allowInsecureImages: true
   workspace:
     name: default
     namespace: default
   config:
-    version: 21.2.7
-    replicaCount: 0
+    version: "21.2.7"
 ```
-> **What's httpURL?** It points to a module definition - a reusable template that describes how to install Redis. [Learn more →](/introduction/concepts/#module-definition)
 	</Card>
 	<Card title="Understand Core Concepts" icon="star">
 		Learn about Workspaces, Modules, Module Definitions, and how Forkspacer manages environments with hibernation and forking.
@@ -71,27 +89,20 @@ spec:
 
     	[Installation guide →](/guides/installation/)
     </Card>
-    <Card title="Module Definition Examples" icon="setting">
-    	Module definitions describe HOW to install applications. They can be Helm-based or custom containers.
-
+    <Card title="Module Examples" icon="setting">
     	<details>
-    	<summary>Helm Module Definition Example</summary>
-
+    	<summary>Helm module example</summary>
 ```yaml
-kind: Helm
+apiVersion: batch.forkspacer.com/v1
+kind: Module
 metadata:
   name: redis
-  version: "1.0.0"
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-  author: "platform-team"
-  description: "Redis in-memory data store"
-  category: "database"
+  namespace: default
 
 config:
-  - type: option
-    name: "Redis Version"
+  - name: "Redis Version"
     alias: "version"
-    spec:
+    option:
       editable: true
       required: false
       default: "21.2.9"
@@ -100,10 +111,9 @@ config:
         - "21.2.7"
         - "21.2.6"
 
-  - type: integer
-    name: "Replica Count"
+  - name: "Replica Count"
     alias: "replicaCount"
-    spec:
+    integer:
       editable: true
       required: false
       default: 1
@@ -111,59 +121,76 @@ config:
       max: 5
 
 spec:
-  namespace: default
-  repo: https://charts.bitnami.com/bitnami
-  chartName: redis
-  version: "{{.config.version}}"
+  helm:
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "{{.config.version}}"
 
-  values:
-    - raw:
-        replica:
-          replicaCount: "{{.config.replicaCount}}"
+    namespace: default
 
-  outputs:
-    - name: "Redis Password"
-      valueFrom:
-        secret:
-          name: "{{.releaseName}}"
-          key: redis-password
-          namespace: default
-    - name: "Redis Port"
-      value: 6379
+    values:
+      - raw:
+          replica:
+            replicaCount: "{{.config.replicaCount}}"
+          image:
+            repository: bitnamilegacy/redis
+          global:
+            security:
+              allowInsecureImages: true
 
-  cleanup:
-    removeNamespace: false
-    removePVCs: true
+    outputs:
+      - name: "Redis Password"
+        valueFrom:
+          secret:
+            name: "{{.releaseName}}"
+            key: redis-password
+            namespace: default
+      - name: "Redis Port"
+        value: 6379
+
+    cleanup:
+      removePVCs: true
+
+  workspace:
+    name: default
+
+  config:
+    version: "21.2.9"
+    replicaCount: 1
 ```
+</details>
 
-    	</details>
-
-    	<details>
-    	<summary>Custom Module Definition Example</summary>
-
-```yaml
-kind: Custom
+  <details>
+	<summary>Custom module example</summary>
+ ```yaml
+apiVersion: batch.forkspacer.com/v1
+kind: Module
 metadata:
   name: custom-installer
-  version: "1.0.0"
-  supportedOperatorVersion: ">= 0.0.0, < 1.0.0"
-  description: "Custom installation via container"
+  namespace: default
 
 config:
-  - type: string
-    name: "Environment"
-    alias: "environment"
-    spec:
-      default: "development"
-      required: true
+  - name: "Environment"
+    alias: "env"
+    option:
+      default: "production"
+      values: ["development", "staging", "production"]
 
 spec:
-  image: "my-registry/custom-module:v1.0.0"
-```
+  custom:
+    image: "my-registry/custom-module:v1.0.0"
+    permissions:
+      - workspace
 
-    	</details>
+  workspace:
+    name: default
 
-    	[Learn about module definitions →](/reference/resources/overview/)
+  config:
+    env: "production"
+ ```
+ </details>
     </Card>
 
 </CardGrid>
