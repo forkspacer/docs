@@ -257,6 +257,7 @@ The `helm` field specifies Helm chart deployment configuration.
 |-------|------|-------------|----------|
 | `chart` | object | Helm chart source specification. See [Chart](#chart). | Yes |
 | `namespace` | string | Target Kubernetes namespace for the Helm release. Supports templating. | Yes |
+| `releaseName` | string | Custom Helm release name (DNS-1035 compliant). Auto-generated if not specified. **Immutable after creation.** See [Release Names](#release-names). | No |
 | `existingRelease` | object | Reference to an existing Helm release to adopt. See [ExistingRelease](#existingrelease). | No |
 | `values` | array | Array of value sources (raw, file, configMap). | No |
 | `outputs` | array | Output values to expose after installation. | No |
@@ -344,6 +345,44 @@ spec:
 | `name` | string | Name of the ConfigMap | Yes |
 | `namespace` | string | Namespace of the ConfigMap | No (default: `default`) |
 | `key` | string | Key containing the chart archive (`.tgz` file) | No (default: `chart.tgz`) |
+
+### Release Names
+
+The `releaseName` field allows you to specify a custom name for the Helm release. If not specified, Forkspacer automatically generates a unique release name.
+
+**Auto-generated Release Names:**
+
+When `releaseName` is not provided, the operator automatically generates a unique release name using the format:
+
+```
+<namespace>-<11-character-uuid>
+```
+
+For example: `default-a1b2c3d4e5f`
+
+**Custom Release Names:**
+
+You can specify a custom release name that must comply with DNS-1035 label standards:
+- Start with a lowercase letter
+- Contain only lowercase letters, numbers, and hyphens
+- End with a lowercase letter or number
+- Be 63 characters or less
+
+```yaml
+spec:
+  helm:
+    releaseName: my-custom-release
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+    namespace: default
+```
+
+**Important Notes:**
+- The `releaseName` field is **immutable** after the Module is created
+- Once set (either automatically or manually), it cannot be changed
+- When adopting an existing release with `existingRelease`, the release name comes from `existingRelease.name` instead
 
 ### ExistingRelease
 
@@ -590,6 +629,37 @@ spec:
     name: dev-environment
 ```
 
+### Helm Module with Custom Release Name
+
+```yaml
+apiVersion: batch.forkspacer.com/v1
+kind: Module
+metadata:
+  name: my-redis
+  namespace: default
+
+spec:
+  helm:
+    releaseName: prod-redis-primary  # Custom release name
+
+    chart:
+      repo:
+        url: https://charts.bitnami.com/bitnami
+        chart: redis
+        version: "21.2.9"
+
+    namespace: default
+
+    values:
+      - raw:
+          fullnameOverride: "{{.releaseName}}"  # Uses the custom name
+
+  workspace:
+    name: production-workspace
+```
+
+This Module uses a custom release name instead of the auto-generated one. The `releaseName` is immutable after creation.
+
 ### Adopting an Existing Helm Release
 
 ```yaml
@@ -617,7 +687,7 @@ spec:
     name: production-workspace
 ```
 
-This Module will track the existing `redis` Helm release without reinstalling it.
+This Module will track the existing `redis` Helm release without reinstalling it. When `existingRelease` is set, the release name comes from `existingRelease.name`.
 
 ### Custom Module
 
@@ -698,7 +768,7 @@ The Module CRD supports powerful Go template rendering for both Helm and Custom 
 When a Module is processed, the operator:
 
 1. **Validates Configuration**: Validates user-provided `spec.config` values against the `config` schema
-2. **Generates Release Name** (Helm only): Creates or retrieves a unique Helm release name (format: `<namespace>-<module-name>`)
+2. **Determines Release Name** (Helm only): Uses the configured `releaseName` if provided, or the auto-generated unique name (format: `<namespace>-<11-char-uuid>`). For adopted releases, uses `existingRelease.name`.
 3. **Renders Namespace** (Helm only): Renders the namespace field first with available context
 4. **Renders Spec**: Recursively processes the entire spec, replacing template expressions with actual values
 5. **Type Preservation**: Automatically converts numeric and boolean strings to their proper types
@@ -710,7 +780,7 @@ When a Module is processed, the operator:
 Available template variables in Helm specs:
 
 - **`.config.<alias>`**: User-provided configuration values (validated)
-- **`.releaseName`**: Generated Helm release name (e.g., `default-redis`)
+- **`.releaseName`**: The Helm release name - either custom-specified via `releaseName` field, auto-generated (e.g., `default-a1b2c3d4e5f`), or from `existingRelease.name` for adopted releases
 - **`.namespace`**: Rendered namespace value (available in all fields except namespace itself)
 
 #### Custom Modules
@@ -747,6 +817,47 @@ storageClass: "{{ default \"standard\" .config.storageClass }}"
 ```yaml
 maxConnections: "{{ mul .config.replicas 10 }}"
 ```
+
+### Template Functions
+
+In addition to Go's standard template functions (like `default`, `eq`, `gt`, `mul`, etc.), Forkspacer provides custom functions for common use cases.
+
+#### randBase62
+
+Generates a random string using base62 characters (0-9, A-Z, a-z). Useful for creating unique identifiers, passwords, or tokens.
+
+**Syntax:**
+```yaml
+{{ randBase62 <length> }}
+```
+
+**Parameters:**
+- `length` (integer): The number of characters to generate
+
+**Example:**
+```yaml
+spec:
+  helm:
+    values:
+      - raw:
+          # Generate a 16-character random API key
+          apiKey: "{{ randBase62 16 }}"
+
+          # Generate a 32-character random token
+          token: "{{ randBase62 32 }}"
+
+          # Generate a short random suffix
+          instanceId: "app-{{ randBase62 8 }}"
+```
+
+**Output examples:**
+```yaml
+apiKey: "aB3dE5fG7hJ9kL2m"
+token: "xY1zA2bC3dE4fG5hI6jK7lM8nO9pQ0rS"
+instanceId: "app-xY7zA2bC"
+```
+
+**Note:** Each time the template is rendered, a new random value is generated. If you need consistent values across updates, use configuration values instead of `randBase62`.
 
 ### Type Preservation
 
@@ -855,11 +966,11 @@ helm:
           readReplicas: 2    # Type preserved as integer
         persistence:
           size: "50Gi"
-        fullnameOverride: "default-postgresql-db"
+        fullnameOverride: "default-a1b2c3d4e5f-db"  # Using auto-generated releaseName
 
   outputs:
     - name: "Database Host"
-      value: "default-postgresql-postgresql.production-database.svc.cluster.local"
+      value: "default-a1b2c3d4e5f-postgresql.production-database.svc.cluster.local"  # Using auto-generated releaseName
 ```
 
 #### Custom Module with Templating
@@ -927,7 +1038,11 @@ spec:
             host: "app.{{.namespace}}.example.com"
 ```
 
-### GetNamespace() Method
+### Effective Namespace and Release Name
+
+When working with Helm modules, especially with adopted releases, Forkspacer uses helper methods to determine the effective namespace and release name.
+
+#### GetNamespace() Method
 
 When `existingRelease` is specified, the effective namespace is determined by `GetNamespace()`:
 
@@ -935,6 +1050,15 @@ When `existingRelease` is specified, the effective namespace is determined by `G
 - Otherwise: returns `helm.namespace`
 
 This ensures proper namespace handling for adopted Helm releases.
+
+#### GetReleaseName() Method
+
+The effective release name is determined by `GetReleaseName()`:
+
+- If `existingRelease` is set: returns `existingRelease.name` (for adopted releases)
+- Otherwise: returns `helm.releaseName` (either custom or auto-generated)
+
+This ensures that templates always have access to the correct release name through `.releaseName`, regardless of whether the release is newly created or adopted.
 
 ### Best Practices for Templating
 
